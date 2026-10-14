@@ -1,0 +1,76 @@
+{
+    "problem_id": "k_shortest_paths_002",
+    "problem_type": "k-Shortest Paths Problem",
+    "difficulty": "medium",
+    "problem_description": "A power company operates an electrical grid with 20 substations: a main power plant, 18 intermediate substations, and a critical industrial zone. The grid contains 35 directed power transmission lines with varying loss rates. From the main plant, lines connect to substations 1, 2, and 3 with losses of 3%, 5%, and 2% respectively. The first tier of substations 1, 2, and 3 each connect to two second-tier substations: substation 1 connects to substations 4 and 5 with 4% and 3% loss, substation 2 connects to substations 6 and 7 with 2% and 6% loss, and substation 3 connects to substations 8 and 9 with 3% and 4% loss. The second tier continues branching: substation 4 connects to substations 10 and 11 with 2% and 5% loss, substation 5 connects to substations 12 and 13 with 3% and 4% loss, substation 6 connects to substations 14 and 15 with 2% and 3% loss, and substation 7 connects to substations 16 and 17 with 4% and 5% loss. Substation 8 connects to substation 18 with 3% loss and directly to the industrial zone with 2% loss, while substation 9 connects directly to the industrial zone with 3% loss. Additional cross-connections exist: substation 10 to substation 14 with 4% loss, substation 11 to substation 15 with 2% loss, substation 12 to substation 16 with 3% loss, substation 13 to substation 17 with 4% loss, substation 14 to substation 18 with 2% loss, substation 15 to the industrial zone with 3% loss, substation 16 to substation 18 with 4% loss, and substation 17 to the industrial zone with 2% loss. Further backup connections include substation 1 to substation 6 with 5% loss, substation 2 to substation 8 with 4% loss, substation 3 to substation 7 with 3% loss, substation 4 to substation 12 with 6% loss, substation 5 to substation 13 with 2% loss, substation 10 to substation 16 with 3% loss, substation 11 to substation 17 with 4% loss, and substation 12 to substation 18 with 2% loss. Each valid transmission route must follow the directional power flow, start at the main plant, end at the industrial zone, and visit each substation at most once. The company needs to find exactly 8 distinct transmission routes ranked from lowest to highest total transmission loss to ensure reliable power supply and provide backup options.\n\nPrint the following fields: - paths: transmission routes from power plant to industrial zone. - total_losses: total power loss percentage for each route.",
+    "reference_solution": {
+        "paths": [
+            [
+                0,
+                3,
+                8,
+                19
+            ],
+            [
+                0,
+                3,
+                9,
+                19
+            ],
+            [
+                0,
+                2,
+                8,
+                19
+            ],
+            [
+                0,
+                3,
+                7,
+                17,
+                19
+            ],
+            [
+                0,
+                2,
+                6,
+                15,
+                19
+            ],
+            [
+                0,
+                1,
+                6,
+                15,
+                19
+            ],
+            [
+                0,
+                1,
+                5,
+                13,
+                17,
+                19
+            ],
+            [
+                0,
+                1,
+                5,
+                13,
+                17,
+                19
+            ]
+        ],
+        "total_losses": [
+            7.0,
+            9.0,
+            11.0,
+            12.0,
+            13.0,
+            14.0,
+            14.0,
+            16.0
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef build_edges():\n    T = 19\n    edges = []\n\n    def add(u, v, loss_percent):\n        edges.append((u, v, int(round(loss_percent * 100))))\n\n    add(0, 1, 3)\n    add(0, 2, 5)\n    add(0, 3, 2)\n    add(1, 4, 4)\n    add(1, 5, 3)\n    add(2, 6, 2)\n    add(2, 7, 6)\n    add(3, 8, 3)\n    add(3, 9, 4)\n    add(4, 10, 2)\n    add(4, 11, 5)\n    add(5, 12, 3)\n    add(5, 13, 4)\n    add(6, 14, 2)\n    add(6, 15, 3)\n    add(7, 16, 4)\n    add(7, 17, 5)\n    add(8, 18, 3)\n    add(8, T, 2)\n    add(9, T, 3)\n    add(10, 14, 4)\n    add(11, 15, 2)\n    add(12, 16, 3)\n    add(13, 17, 4)\n    add(14, 18, 2)\n    add(15, T, 3)\n    add(16, 18, 4)\n    add(17, T, 2)\n    add(1, 6, 5)\n    add(2, 8, 4)\n    add(3, 7, 3)\n    add(4, 12, 6)\n    add(5, 13, 2)\n    add(10, 16, 3)\n    add(11, 17, 4)\n    add(12, 18, 2)\n    return edges\n\ndef solve_k_best_paths(k=8, time_limit_s=15.0, num_workers=8):\n    N = 20\n    S = 0\n    T = 19\n    edges = build_edges()\n    m = len(edges)\n\n    in_edges = [[] for _ in range(N)]\n    out_edges = [[] for _ in range(N)]\n    for idx, (u, v, w) in enumerate(edges):\n        out_edges[u].append(idx)\n        in_edges[v].append(idx)\n\n    found_edge_sets = []\n    results_paths = []\n    results_losses = []\n\n    for _ in range(k):\n        model = cp_model.CpModel()\n        x = [model.NewBoolVar(f\"x_{i}\") for i in range(m)]\n\n        indeg = []\n        outdeg = []\n        for v in range(N):\n            indeg.append(sum(x[i] for i in in_edges[v]) if in_edges[v] else 0)\n            outdeg.append(sum(x[i] for i in out_edges[v]) if out_edges[v] else 0)\n\n        model.Add(outdeg[S] == 1)\n        model.Add(indeg[S] == 0)\n        model.Add(indeg[T] == 1)\n        model.Add(outdeg[T] == 0)\n\n        for v in range(N):\n            if v in (S, T):\n                continue\n            model.Add(indeg[v] <= 1)\n            model.Add(outdeg[v] <= 1)\n            model.Add(indeg[v] == outdeg[v])\n\n        bigM = N\n        pos = [model.NewIntVar(0, N, f\"pos_{v}\") for v in range(N)]\n        model.Add(pos[S] == 0)\n        for idx, (u, v, _) in enumerate(edges):\n            model.Add(pos[v] >= pos[u] + 1 - bigM * (1 - x[idx]))\n\n        for prev_set in found_edge_sets:\n            model.Add(sum(x[i] for i in prev_set) <= len(prev_set) - 1)\n\n        total_loss = model.NewIntVar(0, 10**9, \"total_loss\")\n        model.Add(total_loss == sum(x[i] * edges[i][2] for i in range(m)))\n        model.Minimize(total_loss)\n\n        solver = cp_model.CpSolver()\n        solver.parameters.max_time_in_seconds = time_limit_s\n        solver.parameters.num_search_workers = num_workers\n        status = solver.Solve(model)\n        if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n            break\n\n        chosen = [i for i in range(m) if solver.Value(x[i]) == 1]\n        found_edge_sets.append(set(chosen))\n\n        next_map = {}\n        for i in chosen:\n            u, v, _ = edges[i]\n            next_map[u] = v\n\n        path = [S]\n        cur = S\n        seen = {S}\n        while cur != T:\n            if cur not in next_map:\n                raise RuntimeError(\"Failed to reconstruct a valid path.\")\n            cur = next_map[cur]\n            if cur in seen:\n                raise RuntimeError(\"Cycle detected in reconstructed path.\")\n            seen.add(cur)\n            path.append(cur)\n\n        loss_scaled = solver.Value(total_loss)\n        loss_percent = loss_scaled / 100.0\n        results_paths.append(path)\n        results_losses.append(loss_percent)\n\n    return results_paths, results_losses\n\ndef main():\n    paths, losses = solve_k_best_paths(k=8, time_limit_s=15.0, num_workers=8)\n    print(json.dumps({\"paths\": paths, \"total_losses\": losses}, ensure_ascii=False))\n\nif __name__ == \"__main__\":\n    main()\n"
+}

@@ -1,0 +1,36 @@
+{
+    "problem_id": "uncapacitated_warehouse_location_001",
+    "problem_type": "Uncapacitated Warehouse Location Problem",
+    "difficulty": "simple",
+    "problem_description": "A fast-growing e-commerce company needs to establish fulfillment centers to serve its customers efficiently. The company has identified 2 potential locations for building warehouses, each requiring a significant upfront investment. The company currently serves 5 major customer clusters across different regions, with each cluster having specific demand volumes based on historical sales data. Shipping costs vary between each potential warehouse location and customer cluster due to differences in distance, transportation infrastructure, and regional logistics challenges. The company must decide which warehouses to build and how to assign each customer cluster to the selected warehouses to minimize total operational costs, considering both the fixed construction costs and ongoing shipping expenses. Each warehouse can either be built or not, and each customer cluster must be served by exactly one warehouse.\n\nThe construction costs for each potential warehouse location are:\n- Warehouse Location 1: $1500\n- Warehouse Location 2: $2000\n\nThe customer clusters have the following annual demand (in thousands of orders) and per-order shipping costs from each warehouse: Customer Cluster 1 requires 80 thousand orders annually, with shipping costs of $50 per order from Warehouse Location 1 and $70 per order from Warehouse Location 2; Customer Cluster 2 requires 120 thousand orders annually, with shipping costs of $60 per order from Warehouse Location 1 and $40 per order from Warehouse Location 2; Customer Cluster 3 requires 90 thousand orders annually, with shipping costs of $80 per order from Warehouse Location 1 and $90 per order from Warehouse Location 2; Customer Cluster 4 requires 110 thousand orders annually, with shipping costs of $70 per order from Warehouse Location 1 and $50 per order from Warehouse Location 2; Customer Cluster 5 requires 100 thousand orders annually, with shipping costs of $90 per order from Warehouse Location 1 and $60 per order from Warehouse Location 2.\n\nPrint the following fields: - total_cost: total construction and shipping cost. - centers_open: which warehouses are opened. - assignments: customer cluster assignments to warehouses.",
+    "reference_solution": {
+        "total_cost": 27503500,
+        "centers_open": [
+            1,
+            1
+        ],
+        "assignments": [
+            [
+                1,
+                0
+            ],
+            [
+                0,
+                1
+            ],
+            [
+                1,
+                0
+            ],
+            [
+                0,
+                1
+            ],
+            [
+                0,
+                1
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef solve_warehouse_location():\n    model = cp_model.CpModel()\n    \n    I = [1, 2]\n    J = [1, 2, 3, 4, 5]\n    \n    construction_cost = {1: 1500, 2: 2000}\n    \n    demand = {1: 80, 2: 120, 3: 90, 4: 110, 5: 100}\n    \n    shipping_cost = {\n        1: {1: 50, 2: 60, 3: 80, 4: 70, 5: 90},\n        2: {1: 70, 2: 40, 3: 90, 4: 50, 5: 60}\n    }\n    \n    open_vars = {}\n    for i in I:\n        open_vars[i] = model.NewBoolVar(f\"open_{i}\")\n    \n    assign_vars = {}\n    for i in I:\n        for j in J:\n            assign_vars[(i, j)] = model.NewBoolVar(f\"assign_{i}_{j}\")\n    \n    for j in J:\n        model.Add(sum(assign_vars[(i, j)] for i in I) == 1)\n    \n    for i in I:\n        for j in J:\n            model.Add(assign_vars[(i, j)] <= open_vars[i])\n    \n    construction_cost_expr = sum(construction_cost[i] * open_vars[i] for i in I)\n    \n    shipping_cost_expr = sum(\n        shipping_cost[i][j] * demand[j] * 1000 * assign_vars[(i, j)]\n        for i in I for j in J\n    )\n    \n    total_cost = construction_cost_expr + shipping_cost_expr\n    model.Minimize(total_cost)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 0\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_cost_value = int(solver.ObjectiveValue())\n        \n        centers_open = [int(solver.Value(open_vars[i])) for i in I]\n        \n        assignments = []\n        for j in J:\n            cluster_assignment = []\n            for i in I:\n                cluster_assignment.append(int(solver.Value(assign_vars[(i, j)])))\n            assignments.append(cluster_assignment)\n        \n        print(json.dumps({\n            \"total_cost\": total_cost_value,\n            \"centers_open\": centers_open,\n            \"assignments\": assignments\n        }))\n    else:\n        print(json.dumps({\n            \"total_cost\": 0,\n            \"centers_open\": [],\n            \"assignments\": []\n        }))\n\nif __name__ == \"__main__\":\n    solve_warehouse_location()"
+}

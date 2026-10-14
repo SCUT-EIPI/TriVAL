@@ -1,0 +1,112 @@
+{
+    "problem_id": "maximum_flow_002",
+    "problem_type": "Maximum Flow Problem",
+    "difficulty": "medium",
+    "problem_description": "A telecommunications company operates a network with 20 switching centers arranged in a hierarchical structure, connected by 29 directional data transmission lines with different bandwidth capacities. The network engineer needs to determine the maximum data throughput from the main server to the end-user terminal. The network topology consists of three main layers: the source layer connects the main server to primary distribution centers, the middle layer provides routing between regional centers, and the final layer connects aggregation centers to the terminal. The complete network connections and their bandwidth capacities are as follows: From the main server: to center 1 with 15 Gbps, to center 2 with 12 Gbps. From center 1: to center 3 with 8 Gbps, to center 7 with 10 Gbps. From center 2: to center 4 with 9 Gbps, to center 8 with 11 Gbps. From center 3: to center 5 with 7 Gbps, to center 9 with 13 Gbps. From center 4: to center 6 with 6 Gbps, to center 10 with 14 Gbps. From center 5: to center 11 with 16 Gbps. From center 6: to center 10 with 8 Gbps. From center 7: to center 12 with 9 Gbps, to center 13 with 12 Gbps. From center 8: to center 12 with 7 Gbps, to center 14 with 10 Gbps. From center 9: to center 13 with 11 Gbps, to center 15 with 8 Gbps. From center 10: to center 14 with 13 Gbps, to center 16 with 9 Gbps. From center 11: to center 15 with 14 Gbps, to center 17 with 10 Gbps. From center 12: to center 18 with 15 Gbps. From center 13: to center 18 with 12 Gbps. From center 14: to center 18 with 8 Gbps. From center 15: to center 17 with 11 Gbps. From center 16: to center 18 with 13 Gbps. From center 17: to center 19 with 18 Gbps. From center 18: to center 19 with 20 Gbps. Each transmission line can only handle data flow in the specified direction and cannot exceed its bandwidth capacity. Data flow must be conserved at each intermediate switching center, meaning the total incoming data must equal the total outgoing data. The engineer wants to find the optimal routing configuration that maximizes the total data transmission from the main server to the terminal while respecting all bandwidth constraints and flow conservation requirements.\n\nPrint the following fields: - max_flow: maximum data throughput from server to terminal. - flow_distribution: data flow amount for each transmission line.",
+    "reference_solution": {
+        "max_flow": 27,
+        "flow_distribution": [
+            [
+                0,
+                1,
+                15
+            ],
+            [
+                0,
+                2,
+                12
+            ],
+            [
+                1,
+                3,
+                7
+            ],
+            [
+                1,
+                7,
+                8
+            ],
+            [
+                2,
+                4,
+                1
+            ],
+            [
+                2,
+                8,
+                11
+            ],
+            [
+                3,
+                9,
+                7
+            ],
+            [
+                4,
+                6,
+                1
+            ],
+            [
+                6,
+                10,
+                1
+            ],
+            [
+                7,
+                13,
+                8
+            ],
+            [
+                8,
+                12,
+                7
+            ],
+            [
+                8,
+                14,
+                4
+            ],
+            [
+                9,
+                15,
+                7
+            ],
+            [
+                10,
+                14,
+                1
+            ],
+            [
+                12,
+                18,
+                7
+            ],
+            [
+                13,
+                18,
+                8
+            ],
+            [
+                14,
+                18,
+                5
+            ],
+            [
+                15,
+                17,
+                7
+            ],
+            [
+                17,
+                19,
+                7
+            ],
+            [
+                18,
+                19,
+                20
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_max_flow():\n    solver = pywraplp.Solver.CreateSolver(\"GLOP\")\n    INF = solver.infinity()\n    \n    source = 'source'\n    sink = 19\n    nodes = [source] + list(range(1, 20))\n    \n    arcs = [\n        (source, 1), (source, 2),\n        (1, 3), (1, 7),\n        (2, 4), (2, 8),\n        (3, 5), (3, 9),\n        (4, 6), (4, 10),\n        (5, 11),\n        (6, 10),\n        (7, 12), (7, 13),\n        (8, 12), (8, 14),\n        (9, 13), (9, 15),\n        (10, 14), (10, 16),\n        (11, 15), (11, 17),\n        (12, 18),\n        (13, 18),\n        (14, 18),\n        (15, 17),\n        (16, 18),\n        (17, 19),\n        (18, 19)\n    ]\n    \n    capacities = {\n        (source, 1): 15,\n        (source, 2): 12,\n        (1, 3): 8,\n        (1, 7): 10,\n        (2, 4): 9,\n        (2, 8): 11,\n        (3, 5): 7,\n        (3, 9): 13,\n        (4, 6): 6,\n        (4, 10): 14,\n        (5, 11): 16,\n        (6, 10): 8,\n        (7, 12): 9,\n        (7, 13): 12,\n        (8, 12): 7,\n        (8, 14): 10,\n        (9, 13): 11,\n        (9, 15): 8,\n        (10, 14): 13,\n        (10, 16): 9,\n        (11, 15): 14,\n        (11, 17): 10,\n        (12, 18): 15,\n        (13, 18): 12,\n        (14, 18): 8,\n        (15, 17): 11,\n        (16, 18): 13,\n        (17, 19): 18,\n        (18, 19): 20\n    }\n    \n    flow_vars = {}\n    for arc in arcs:\n        flow_vars[arc] = solver.NumVar(0, capacities[arc], f\"flow_{arc[0]}_{arc[1]}\")\n    \n    for node in range(1, 19):\n        incoming_arcs = [arc for arc in arcs if arc[1] == node]\n        outgoing_arcs = [arc for arc in arcs if arc[0] == node]\n        \n        if incoming_arcs and outgoing_arcs:\n            incoming_sum = sum(flow_vars[arc] for arc in incoming_arcs)\n            outgoing_sum = sum(flow_vars[arc] for arc in outgoing_arcs)\n            solver.Add(incoming_sum == outgoing_sum, f\"flow_conservation_{node}\")\n    \n    incoming_to_sink = [arc for arc in arcs if arc[1] == sink]\n    objective_expr = sum(flow_vars[arc] for arc in incoming_to_sink)\n    solver.Maximize(objective_expr)\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        max_flow = int(round(solver.Objective().Value()))\n        flow_distribution = []\n        for arc in arcs:\n            flow_value = flow_vars[arc].solution_value()\n            if flow_value > 1e-6:\n                u, v = arc\n                u_id = 0 if u == 'source' else u\n                v_id = v\n                flow_distribution.append([u_id, v_id, int(round(flow_value))])\n        print(json.dumps({\"max_flow\": max_flow, \"flow_distribution\": flow_distribution}))\n    else:\n        print(json.dumps({\"max_flow\": 0, \"flow_distribution\": []}))\n\nif __name__ == \"__main__\":\n    solve_max_flow()"
+}

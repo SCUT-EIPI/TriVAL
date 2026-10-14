@@ -1,0 +1,36 @@
+{
+    "problem_id": "open_shop_scheduling_001",
+    "problem_type": "Open Shop Scheduling Problem",
+    "difficulty": "simple",
+    "problem_description": "In an advanced computational facility, four independent workflows each contain four computational tasks that require uninterrupted processing on dedicated hardware systems. The system must follow several constraints: first, a workflow cannot process multiple tasks at the same time; second, each hardware system can only handle one task at a time from any workflow; third, tasks within each workflow can be processed in any order. The processing requirements are: Workflow Alpha needs GPU-Cluster for 54 minutes, CPU-Node for 34 minutes, Memory-Array for 61 minutes, and I/O-Subsystem for 2 minutes; Workflow Beta needs Memory-Array for 9 minutes, CPU-Node for 15 minutes, I/O-Subsystem for 89 minutes, and GPU-Cluster for 70 minutes; Workflow Gamma needs CPU-Node for 38 minutes, I/O-Subsystem for 19 minutes, GPU-Cluster for 28 minutes, and Memory-Array for 87 minutes; Workflow Delta needs CPU-Node for 95 minutes, GPU-Cluster for 34 minutes, I/O-Subsystem for 7 minutes, and Memory-Array for 29 minutes. How should we schedule the start time for each task to minimize the time when all workflows are completed?\n\nPrint the following fields: - start_times: start time for each workflow's task. - makespan: total completion time.",
+    "reference_solution": {
+        "start_times": [
+            [
+                34,
+                0,
+                116,
+                89
+            ],
+            [
+                89,
+                167,
+                182,
+                0
+            ],
+            [
+                0,
+                129,
+                29,
+                167
+            ],
+            [
+                159,
+                34,
+                0,
+                129
+            ]
+        ],
+        "makespan": 193
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    workflows = ['Alpha', 'Beta', 'Gamma', 'Delta']\n    hardware = ['GPU-Cluster', 'CPU-Node', 'Memory-Array', 'I/O-Subsystem']\n    \n    processing_time = {\n        'Alpha': {\n            'GPU-Cluster': 54,\n            'CPU-Node': 34,\n            'Memory-Array': 61,\n            'I/O-Subsystem': 2\n        },\n        'Beta': {\n            'GPU-Cluster': 70,\n            'CPU-Node': 15,\n            'Memory-Array': 9,\n            'I/O-Subsystem': 89\n        },\n        'Gamma': {\n            'GPU-Cluster': 28,\n            'CPU-Node': 38,\n            'Memory-Array': 87,\n            'I/O-Subsystem': 19\n        },\n        'Delta': {\n            'GPU-Cluster': 34,\n            'CPU-Node': 95,\n            'Memory-Array': 29,\n            'I/O-Subsystem': 7\n        }\n    }\n    \n    total_time = sum(processing_time[w][h] for w in workflows for h in hardware)\n    \n    start = {}\n    for w in workflows:\n        for h in hardware:\n            start[(w, h)] = model.NewIntVar(0, total_time, f'start_{w}_{h}')\n    \n    makespan = model.NewIntVar(0, total_time, 'makespan')\n    \n    for w in workflows:\n        for h1, h2 in itertools.combinations(hardware, 2):\n            task1_before_task2 = model.NewBoolVar(f'{w}_{h1}_before_{h2}')\n            task2_before_task1 = model.NewBoolVar(f'{w}_{h2}_before_{h1}')\n            \n            model.AddBoolOr([task1_before_task2, task2_before_task1])\n            model.AddImplication(task1_before_task2, task2_before_task1.Not())\n            model.AddImplication(task2_before_task1, task1_before_task2.Not())\n            \n            model.Add(start[(w, h1)] + processing_time[w][h1] <= start[(w, h2)]) \\\n                .OnlyEnforceIf(task1_before_task2)\n            \n            model.Add(start[(w, h2)] + processing_time[w][h2] <= start[(w, h1)]) \\\n                .OnlyEnforceIf(task2_before_task1)\n    \n    for h in hardware:\n        for w1, w2 in itertools.combinations(workflows, 2):\n            w1_before_w2 = model.NewBoolVar(f'{h}_{w1}_before_{w2}')\n            w2_before_w1 = model.NewBoolVar(f'{h}_{w2}_before_{w1}')\n            \n            model.AddBoolOr([w1_before_w2, w2_before_w1])\n            model.AddImplication(w1_before_w2, w2_before_w1.Not())\n            model.AddImplication(w2_before_w1, w1_before_w2.Not())\n            \n            model.Add(start[(w1, h)] + processing_time[w1][h] <= start[(w2, h)]) \\\n                .OnlyEnforceIf(w1_before_w2)\n            \n            model.Add(start[(w2, h)] + processing_time[w2][h] <= start[(w1, h)]) \\\n                .OnlyEnforceIf(w2_before_w1)\n    \n    for w in workflows:\n        for h in hardware:\n            model.Add(start[(w, h)] + processing_time[w][h] <= makespan)\n    \n    model.Minimize(makespan)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        start_times = []\n        for w in workflows:\n            workflow_times = []\n            for h in hardware:\n                workflow_times.append(solver.Value(start[(w, h)]))\n            start_times.append(workflow_times)\n        \n        result = {\n            \"start_times\": start_times,\n            \"makespan\": solver.Value(makespan)\n        }\n        print(json.dumps(result))\n    else:\n        result = {\n            \"start_times\": [],\n            \"makespan\": 0\n        }\n        print(json.dumps(result))\n\nif __name__ == '__main__':\n    main()"
+}

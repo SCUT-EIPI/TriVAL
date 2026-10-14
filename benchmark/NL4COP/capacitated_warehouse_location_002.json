@@ -1,0 +1,52 @@
+{
+    "problem_id": "capacitated_warehouse_location_002",
+    "problem_type": "Capacitated Warehouse Location Problem",
+    "difficulty": "medium",
+    "problem_description": "A retail company is planning to optimize its distribution network to serve seven major stores in the region. The company has three potential distribution centers to choose from, each with different setup costs and storage capacities. Each store has specific monthly demand in tons, and the transportation costs vary depending on which distribution center supplies them. The company needs to decide which distribution centers to open and how to allocate the store demands among these centers to minimize total costs while ensuring all store demands are fully met and no distribution center exceeds its capacity.\n\nThe available distribution centers and their characteristics are:\n1. Distribution Center A: Setup cost $1200, capacity 180 tons\n2. Distribution Center B: Setup cost $650, capacity 95 tons  \n3. Distribution Center C: Setup cost $1850, capacity 220 tons\n\nThe monthly demands and transportation costs (per ton) from each distribution center to each store are:\n1. Store 1: Demand 75 tons, transportation costs [$23, $8, $31] from centers A, B, C respectively\n2. Store 2: Demand 42 tons, transportation costs [$15, $27, $12] from centers A, B, C respectively\n3. Store 3: Demand 88 tons, transportation costs [$9, $33, $19] from centers A, B, C respectively\n4. Store 4: Demand 56 tons, transportation costs [$28, $14, $22] from centers A, B, C respectively\n5. Store 5: Demand 63 tons, transportation costs [$17, $25, $8] from centers A, B, C respectively\n6. Store 6: Demand 91 tons, transportation costs [$32, $11, $26] from centers A, B, C respectively\n7. Store 7: Demand 37 tons, transportation costs [$13, $29, $16] from centers A, B, C respectively\n\nEach store's demand must be completely satisfied, and the total demand allocated to any distribution center cannot exceed its capacity. The company wants to find the most cost-effective plan that minimizes the sum of setup costs and transportation costs.\n\nPrint the following fields: - total_cost: total cost including setup and transportation. - distribution_centers_open: which distribution centers are open. - allocations: how much each store orders from each distribution center.",
+    "reference_solution": {
+        "total_cost": 9879,
+        "distribution_centers_open": [
+            1,
+            1,
+            1
+        ],
+        "allocations": [
+            [
+                55.0,
+                20.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                42.0
+            ],
+            [
+                88.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                56.0
+            ],
+            [
+                0.0,
+                0.0,
+                63.0
+            ],
+            [
+                0.0,
+                75.0,
+                16.0
+            ],
+            [
+                37.0,
+                0.0,
+                0.0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_distribution_network():\n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    if not solver:\n        return\n    \n    centers = ['A', 'B', 'C']\n    stores = [1, 2, 3, 4, 5, 6, 7]\n    \n    setup_cost = {'A': 1200, 'B': 650, 'C': 1850}\n    \n    capacity = {'A': 180, 'B': 95, 'C': 220}\n    \n    demand = {1: 75, 2: 42, 3: 88, 4: 56, 5: 63, 6: 91, 7: 37}\n    \n    trans_cost = {\n        'A': {1: 23, 2: 15, 3: 9, 4: 28, 5: 17, 6: 32, 7: 13},\n        'B': {1: 8, 2: 27, 3: 33, 4: 14, 5: 25, 6: 11, 7: 29},\n        'C': {1: 31, 2: 12, 3: 19, 4: 22, 5: 8, 6: 26, 7: 16}\n    }\n    \n    open_var = {}\n    for i in centers:\n        open_var[i] = solver.BoolVar(f\"open_{i}\")\n    \n    ship = {}\n    for i in centers:\n        ship[i] = {}\n        for j in stores:\n            ship[i][j] = solver.NumVar(0, solver.infinity(), f\"ship_{i}_{j}\")\n    \n    for j in stores:\n        solver.Add(sum(ship[i][j] for i in centers) == demand[j])\n    \n    for i in centers:\n        solver.Add(sum(ship[i][j] for j in stores) <= capacity[i] * open_var[i])\n    \n    setup_cost_expr = sum(setup_cost[i] * open_var[i] for i in centers)\n    trans_cost_expr = sum(trans_cost[i][j] * ship[i][j] for i in centers for j in stores)\n    \n    solver.Minimize(setup_cost_expr + trans_cost_expr)\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        total_cost = int(round(solver.Objective().Value()))\n        \n        center_to_index = {'A': 0, 'B': 1, 'C': 2}\n        distribution_centers_open = [0, 0, 0]\n        for i in centers:\n            if open_var[i].solution_value() > 0.5:\n                distribution_centers_open[center_to_index[i]] = 1\n        \n        allocations = []\n        for j in stores:\n            store_alloc = [0.0, 0.0, 0.0]\n            for i in centers:\n                idx = center_to_index[i]\n                val = ship[i][j].solution_value()\n                store_alloc[idx] = round(val, 6)\n                if abs(store_alloc[idx]) < 1e-6:\n                    store_alloc[idx] = 0.0\n            allocations.append(store_alloc)\n        \n        print(json.dumps({\n            \"total_cost\": total_cost,\n            \"distribution_centers_open\": distribution_centers_open,\n            \"allocations\": allocations\n        }))\n    \n    elif status == pywraplp.Solver.INFEASIBLE:\n        print(json.dumps({\"error\": \"Problem is infeasible\"}))\n    elif status == pywraplp.Solver.UNBOUNDED:\n        print(json.dumps({\"error\": \"Problem is unbounded\"}))\n    else:\n        print(json.dumps({\"error\": f\"Solver status: {status}\"}))\n\nif __name__ == \"__main__\":\n    solve_distribution_network()"
+}

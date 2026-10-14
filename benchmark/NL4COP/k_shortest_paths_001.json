@@ -1,0 +1,51 @@
+{
+    "problem_id": "k_shortest_paths_001",
+    "problem_type": "k-Shortest Paths Problem",
+    "difficulty": "simple",
+    "problem_description": "A telecommunications company operates a network with 10 nodes consisting of 1 main server, 8 relay stations, and 1 critical data center. The network contains 18 directed transmission links with varying delays: connections from the server to relays 1, 4, and 7 have delays of 2ms, 1ms, and 3ms respectively; relay 1 connects to relay 2 and relay 5 with delays of 3ms and 2ms respectively; relay 2 connects to relay 3 and relay 6 with delays of 1ms and 4ms respectively; relay 3 connects to the data center and relay 8 with delays of 4ms and 3ms respectively; relay 4 connects to relay 5 and relay 7 with delays of 2ms and 1ms respectively; relay 5 connects to relay 6 and the data center with delays of 3ms and 6ms respectively; relay 6 connects to the data center and relay 8 with delays of 2ms and 2ms respectively; relay 7 connects to relay 8 and relay 2 with delays of 2ms and 3ms respectively; and relay 8 connects to the data center with a delay of 5ms. Each valid transmission path must follow the data transmission direction of each node, start from the server, end at the data center, and visit each station no more than once. To ensure reliable data transmission, the company wants to find exactly 5 distinct backup transmission routes ranked from shortest to longest total delay. If there are fewer than 5 paths available, find all possible transmission routes.\n\nPrint the following fields: - paths: transmission paths from server to data center. - total_delays: total delay time for each path in milliseconds.",
+    "reference_solution": {
+        "paths": [
+            [
+                0,
+                4,
+                5,
+                6,
+                9
+            ],
+            [
+                0,
+                4,
+                7,
+                8,
+                9
+            ],
+            [
+                0,
+                4,
+                5,
+                9
+            ],
+            [
+                0,
+                1,
+                5,
+                6,
+                9
+            ],
+            [
+                0,
+                7,
+                8,
+                9
+            ]
+        ],
+        "total_delays": [
+            8,
+            9,
+            9,
+            9,
+            10
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    nodes = ['S', '1', '2', '3', '4', '5', '6', '7', '8', 'D']\n    node_to_idx = {node: i for i, node in enumerate(nodes)}\n    \n    links = [\n        ('S', '1', 2), ('S', '4', 1), ('S', '7', 3),\n        ('1', '2', 3), ('1', '5', 2),\n        ('2', '3', 1), ('2', '6', 4),\n        ('3', 'D', 4), ('3', '8', 3),\n        ('4', '5', 2), ('4', '7', 1),\n        ('5', '6', 3), ('5', 'D', 6),\n        ('6', 'D', 2), ('6', '8', 2),\n        ('7', '8', 2), ('7', '2', 3),\n        ('8', 'D', 5)\n    ]\n    \n    n_links = len(links)\n    \n    found_paths = []\n    found_delays = []\n    path_sequences = []\n    \n    max_paths = 5\n    \n    for iteration in range(max_paths):\n        model = cp_model.CpModel()\n        \n        x = [model.NewBoolVar(f\"x_{i}\") for i in range(n_links)]\n        \n        for node in nodes:\n            node_idx = node_to_idx[node]\n            \n            outgoing = []\n            for i, (u, v, d) in enumerate(links):\n                if u == node:\n                    outgoing.append(x[i])\n            \n            incoming = []\n            for i, (u, v, d) in enumerate(links):\n                if v == node:\n                    incoming.append(x[i])\n            \n            if node == 'S':\n                model.Add(sum(outgoing) == 1)\n                model.Add(sum(incoming) == 0)\n                \n            elif node == 'D':\n                model.Add(sum(incoming) == 1)\n                model.Add(sum(outgoing) == 0)\n                \n            else:\n                visited = model.NewBoolVar(f\"visited_{node}\")\n                model.Add(sum(incoming) == visited)\n                model.Add(sum(outgoing) == visited)\n        \n        total_delay = model.NewIntVar(0, 100, f\"total_delay_{iteration}\")\n        delay_expr = sum(d * x[i] for i, (_, _, d) in enumerate(links))\n        model.Add(total_delay == delay_expr)\n        \n        for prev_path in found_paths:\n            diff_vars = []\n            for i in range(n_links):\n                if prev_path[i] == 1:\n                    diff_vars.append(x[i].Not())\n                else:\n                    diff_vars.append(x[i])\n            model.AddBoolOr(diff_vars)\n        \n        model.Minimize(total_delay)\n        \n        solver = cp_model.CpSolver()\n        solver.parameters.max_time_in_seconds = 5.0\n        solver.parameters.num_search_workers = 0\n        \n        status = solver.Solve(model)\n        \n        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n            path = [solver.Value(x[i]) for i in range(n_links)]\n            delay = solver.Value(total_delay)\n            \n            used_links = [(u, v) for i, (u, v, d) in enumerate(links) if path[i] == 1]\n            \n            current = 'S'\n            sequence = ['S']\n            visited_nodes = {'S'}\n            \n            while current != 'D':\n                found_next = False\n                for u, v in used_links:\n                    if u == current:\n                        if v in visited_nodes:\n                            continue\n                        sequence.append(v)\n                        visited_nodes.add(v)\n                        current = v\n                        found_next = True\n                        break\n                \n                if not found_next:\n                    path_str = f\"Error: No outgoing link from {current}\"\n                    break\n            else:\n                path_str = ' -> '.join(sequence)\n            \n            found_paths.append(path)\n            found_delays.append(delay)\n            path_sequences.append(path_str)\n        else:\n            break\n    \n    sorted_indices = sorted(range(len(found_delays)), key=lambda i: found_delays[i])\n    \n    final_paths = [path_sequences[i] for i in sorted_indices]\n    final_delays = [found_delays[i] for i in sorted_indices]\n\n    node_to_idx = {node: i for i, node in enumerate(nodes)}\n    paths_as_indices = []\n    for path_str in final_paths:\n        node_list = path_str.split(' -> ')\n        idx_list = [node_to_idx[node] for node in node_list]\n        paths_as_indices.append(idx_list)\n    \n    print(json.dumps({\n        \"paths\": paths_as_indices,\n        \"total_delays\": final_delays\n    }))\n\nif __name__ == \"__main__\":\n    main()"
+}

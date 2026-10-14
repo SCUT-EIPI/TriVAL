@@ -1,0 +1,108 @@
+{
+    "problem_id": "minimum_cost_maximum_flow_002",
+    "problem_type": "Minimum Cost Maximum Flow Problem",
+    "difficulty": "medium",
+    "problem_description": "A global airline operates a flight network with 20 airports connected by 30 flight routes, each with specific passenger capacity limits and operating costs. The airline operations manager needs to determine how to optimize passenger transportation from the main hub airport to the final destination airport by carrying as many passengers as possible while keeping total operating costs as low as possible. The flight network system consists of multiple layers: the hub layer connects to primary regional airports, the middle layer provides inter-regional connections through transfer airports, and the final layer delivers passengers to the destination airport. Each flight route has a maximum passenger capacity and an operating cost per passenger. At each intermediate airport, the total incoming passengers must equal the total outgoing passengers. No flight route can carry more passengers than its capacity limit, and all passenger flows follow the specified directions. The complete flight network details are as follows: From Hub Airport: to Airport A with capacity 15 passengers and cost $2 per passenger; to Airport B with capacity 12 passengers and cost $3 per passenger. From Airport A: to Airport C with capacity 8 passengers and cost $1 per passenger; to Airport G with capacity 10 passengers and cost $2 per passenger. From Airport B: to Airport D with capacity 9 passengers and cost $4 per passenger; to Airport H with capacity 11 passengers and cost $2 per passenger. From Airport C: to Airport E with capacity 7 passengers and cost $3 per passenger; to Airport I with capacity 13 passengers and cost $1 per passenger. From Airport D: to Airport F with capacity 6 passengers and cost $5 per passenger; to Airport J with capacity 14 passengers and cost $2 per passenger. From Airport E: to Airport K with capacity 16 passengers and cost $2 per passenger. From Airport F: to Airport J with capacity 8 passengers and cost $3 per passenger. From Airport G: to Airport L with capacity 9 passengers and cost $2 per passenger; to Airport M with capacity 12 passengers and cost $1 per passenger. From Airport H: to Airport L with capacity 7 passengers and cost $4 per passenger; to Airport N with capacity 10 passengers and cost $2 per passenger. From Airport I: to Airport M with capacity 11 passengers and cost $3 per passenger; to Airport O with capacity 8 passengers and cost $2 per passenger. From Airport J: to Airport N with capacity 13 passengers and cost $1 per passenger; to Airport P with capacity 9 passengers and cost $4 per passenger. From Airport K: to Airport O with capacity 14 passengers and cost $2 per passenger; to Airport Q with capacity 10 passengers and cost $3 per passenger. From Airport L: to Airport R with capacity 15 passengers and cost $2 per passenger. From Airport M: to Airport R with capacity 12 passengers and cost $4 per passenger. From Airport N: to Airport R with capacity 8 passengers and cost $3 per passenger. From Airport O: to Airport Q with capacity 11 passengers and cost $2 per passenger. From Airport P: to Airport R with capacity 13 passengers and cost $1 per passenger. From Airport Q: to Destination Airport with capacity 18 passengers and cost $2 per passenger. From Airport R: to Destination Airport with capacity 20 passengers and cost $3 per passenger. From Airport E: to Airport Q with capacity 9 passengers and cost $4 per passenger.\n\nPrint the following fields: - max_passengers: maximum passenger flow from hub to destination. - total_cost: total operating cost. - passenger_distribution: for each flight route, list passenger amount with from airport, to airport, passenger amount.",
+    "reference_solution": {
+        "max_passengers": 27,
+        "total_cost": 320,
+        "passenger_distribution": [
+            [
+                0,
+                1,
+                15
+            ],
+            [
+                0,
+                2,
+                12
+            ],
+            [
+                1,
+                3,
+                8
+            ],
+            [
+                1,
+                7,
+                7
+            ],
+            [
+                2,
+                4,
+                1
+            ],
+            [
+                2,
+                8,
+                11
+            ],
+            [
+                3,
+                9,
+                8
+            ],
+            [
+                4,
+                10,
+                1
+            ],
+            [
+                7,
+                12,
+                7
+            ],
+            [
+                8,
+                12,
+                3
+            ],
+            [
+                8,
+                14,
+                8
+            ],
+            [
+                9,
+                15,
+                8
+            ],
+            [
+                10,
+                16,
+                1
+            ],
+            [
+                12,
+                18,
+                10
+            ],
+            [
+                14,
+                18,
+                8
+            ],
+            [
+                15,
+                17,
+                8
+            ],
+            [
+                16,
+                18,
+                1
+            ],
+            [
+                17,
+                19,
+                8
+            ],
+            [
+                18,
+                19,
+                19
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_flight_network():\n    solver = pywraplp.Solver.CreateSolver('GLOP')\n    INF = solver.infinity()\n    \n    airports = ['Hub', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', \n                'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'Destination']\n    \n    routes = [\n        ('Hub', 'A'), ('Hub', 'B'),\n        ('A', 'C'), ('A', 'G'),\n        ('B', 'D'), ('B', 'H'),\n        ('C', 'E'), ('C', 'I'),\n        ('D', 'F'), ('D', 'J'),\n        ('E', 'K'), ('E', 'Q'),\n        ('F', 'J'),\n        ('G', 'L'), ('G', 'M'),\n        ('H', 'L'), ('H', 'N'),\n        ('I', 'M'), ('I', 'O'),\n        ('J', 'N'), ('J', 'P'),\n        ('K', 'O'), ('K', 'Q'),\n        ('L', 'R'),\n        ('M', 'R'),\n        ('N', 'R'),\n        ('O', 'Q'),\n        ('P', 'R'),\n        ('Q', 'Destination'),\n        ('R', 'Destination')\n    ]\n    \n    capacity = {\n        ('Hub', 'A'): 15,\n        ('Hub', 'B'): 12,\n        ('A', 'C'): 8,\n        ('A', 'G'): 10,\n        ('B', 'D'): 9,\n        ('B', 'H'): 11,\n        ('C', 'E'): 7,\n        ('C', 'I'): 13,\n        ('D', 'F'): 6,\n        ('D', 'J'): 14,\n        ('E', 'K'): 16,\n        ('E', 'Q'): 9,\n        ('F', 'J'): 8,\n        ('G', 'L'): 9,\n        ('G', 'M'): 12,\n        ('H', 'L'): 7,\n        ('H', 'N'): 10,\n        ('I', 'M'): 11,\n        ('I', 'O'): 8,\n        ('J', 'N'): 13,\n        ('J', 'P'): 9,\n        ('K', 'O'): 14,\n        ('K', 'Q'): 10,\n        ('L', 'R'): 15,\n        ('M', 'R'): 12,\n        ('N', 'R'): 8,\n        ('O', 'Q'): 11,\n        ('P', 'R'): 13,\n        ('Q', 'Destination'): 18,\n        ('R', 'Destination'): 20\n    }\n    \n    cost_per_passenger = {\n        ('Hub', 'A'): 2,\n        ('Hub', 'B'): 3,\n        ('A', 'C'): 1,\n        ('A', 'G'): 2,\n        ('B', 'D'): 4,\n        ('B', 'H'): 2,\n        ('C', 'E'): 3,\n        ('C', 'I'): 1,\n        ('D', 'F'): 5,\n        ('D', 'J'): 2,\n        ('E', 'K'): 2,\n        ('E', 'Q'): 4,\n        ('F', 'J'): 3,\n        ('G', 'L'): 2,\n        ('G', 'M'): 1,\n        ('H', 'L'): 4,\n        ('H', 'N'): 2,\n        ('I', 'M'): 3,\n        ('I', 'O'): 2,\n        ('J', 'N'): 1,\n        ('J', 'P'): 4,\n        ('K', 'O'): 2,\n        ('K', 'Q'): 3,\n        ('L', 'R'): 2,\n        ('M', 'R'): 4,\n        ('N', 'R'): 3,\n        ('O', 'Q'): 2,\n        ('P', 'R'): 1,\n        ('Q', 'Destination'): 2,\n        ('R', 'Destination'): 3\n    }\n    \n    flow = {}\n    for route in routes:\n        flow[route] = solver.NumVar(0, capacity[route], f'flow_{route[0]}_{route[1]}')\n    \n    intermediate_airports = [a for a in airports if a not in ['Hub', 'Destination']]\n    \n    for airport in intermediate_airports:\n        incoming = []\n        for route in routes:\n            if route[1] == airport:\n                incoming.append(flow[route])\n        \n        outgoing = []\n        for route in routes:\n            if route[0] == airport:\n                outgoing.append(flow[route])\n        \n        if incoming and outgoing:\n            solver.Add(solver.Sum(incoming) == solver.Sum(outgoing))\n    \n    hub_outgoing = []\n    for route in routes:\n        if route[0] == 'Hub':\n            hub_outgoing.append(flow[route])\n    \n    solver.Maximize(solver.Sum(hub_outgoing))\n    \n    status1 = solver.Solve()\n    \n    if status1 != pywraplp.Solver.OPTIMAL:\n        print(f\"First optimization failed with status: {status1}\")\n        return\n    \n    max_passengers = solver.Objective().Value()\n    \n    solver.Add(solver.Sum(hub_outgoing) == max_passengers)\n    \n    total_cost_expr = solver.Sum(flow[route] * cost_per_passenger[route] for route in routes)\n    solver.Minimize(total_cost_expr)\n    \n    status2 = solver.Solve()\n    \n    if status2 != pywraplp.Solver.OPTIMAL:\n        print(f\"Second optimization failed with status: {status2}\")\n        return\n    \n    total_cost = solver.Objective().Value()\n    \n    airport_to_index = {name: idx for idx, name in enumerate(airports)}\n    \n    passenger_distribution = []\n    for route in routes:\n        passenger_amount = flow[route].solution_value()\n        if passenger_amount > 1e-6:\n            from_idx = airport_to_index[route[0]]\n            to_idx = airport_to_index[route[1]]\n            passenger_distribution.append([from_idx, to_idx, round(passenger_amount)])\n    \n    print(json.dumps({\n        \"max_passengers\": int(max_passengers),\n        \"total_cost\": int(total_cost),\n        \"passenger_distribution\": passenger_distribution\n    }))\n\nif __name__ == \"__main__\":\n    solve_flight_network()"
+}

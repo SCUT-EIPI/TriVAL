@@ -1,0 +1,73 @@
+{
+    "problem_id": "minimum_cost_maximum_flow_001",
+    "problem_type": "Minimum Cost Maximum Flow Problem",
+    "difficulty": "simple",
+    "problem_description": "A regional power company operates a distribution network with 1 power plant, 8 intermediate substations, and 1 consumer area, all connected by 15 transmission lines with specific power capacity limits and transmission costs. The power distribution system consists of three layers: the power plant layer connects to primary distribution substations, the middle layer provides regional routing through intermediate substations, and the final layer delivers power to the consumer area. Each transmission line has a maximum capacity in megawatts and a transmission cost in dollars per megawatt-hour. Power flow must be conserved at each intermediate substation, meaning the total incoming power equals the total outgoing power. No transmission line can carry more power than its capacity limit, and all power flows are unidirectional as specified. The power system operator needs to determine how to optimize electricity delivery from the main power plant to the consumer area by sending as much power as possible while keeping transmission costs as low as possible. The complete power system details are as follows: From Power Plant: to Substation A with capacity 10 MW and cost $2 per MWh; to Substation B with capacity 8 MW and cost $3 per MWh. From Substation A: to Substation C with capacity 5 MW and cost $1 per MWh; to Substation D with capacity 7 MW and cost $2 per MWh. From Substation B: to Substation D with capacity 6 MW and cost $4 per MWh; to Substation E with capacity 9 MW and cost $2 per MWh. From Substation C: to Substation F with capacity 8 MW and cost $3 per MWh. From Substation D: to Substation F with capacity 4 MW and cost $5 per MWh; to Substation G with capacity 10 MW and cost $1 per MWh. From Substation E: to Substation G with capacity 7 MW and cost $3 per MWh; to Substation H with capacity 5 MW and cost $2 per MWh. From Substation F: to Consumer Area with capacity 12 MW and cost $2 per MWh. From Substation G: to Consumer Area with capacity 9 MW and cost $4 per MWh. From Substation H: to Substation G with capacity 6 MW and cost $1 per MWh; to Consumer Area with capacity 8 MW and cost $3 per MWh.\n\nPrint the following fields: - max_power: maximum power flow from plant to consumer. - total_cost: total transmission cost. - power_allocation: for each transmission line, list power amount with from node, to node, power amount.",
+    "reference_solution": {
+        "max_power": 18,
+        "total_cost": 171,
+        "power_allocation": [
+            [
+                0,
+                1,
+                10
+            ],
+            [
+                0,
+                2,
+                8
+            ],
+            [
+                1,
+                3,
+                5
+            ],
+            [
+                1,
+                4,
+                5
+            ],
+            [
+                2,
+                4,
+                3
+            ],
+            [
+                2,
+                5,
+                5
+            ],
+            [
+                3,
+                6,
+                5
+            ],
+            [
+                4,
+                7,
+                8
+            ],
+            [
+                5,
+                8,
+                5
+            ],
+            [
+                6,
+                9,
+                5
+            ],
+            [
+                7,
+                9,
+                8
+            ],
+            [
+                8,
+                9,
+                5
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef main():\n    solver = pywraplp.Solver.CreateSolver(\"GLOP\")\n    if not solver:\n        print(\"Could not create solver\")\n        return\n    \n    nodes = [\"plant\", \"A\", \"B\", \"C\", \"D\", \"E\", \"F\", \"G\", \"H\", \"consumer\"]\n    intermediate_nodes = [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\", \"G\", \"H\"]\n    \n    arcs = [\n        (\"plant\", \"A\"), (\"plant\", \"B\"),\n        (\"A\", \"C\"), (\"A\", \"D\"),\n        (\"B\", \"D\"), (\"B\", \"E\"),\n        (\"C\", \"F\"),\n        (\"D\", \"F\"), (\"D\", \"G\"),\n        (\"E\", \"G\"), (\"E\", \"H\"),\n        (\"F\", \"consumer\"),\n        (\"G\", \"consumer\"),\n        (\"H\", \"G\"), (\"H\", \"consumer\")\n    ]\n    \n    capacity = {\n        (\"plant\", \"A\"): 10,\n        (\"plant\", \"B\"): 8,\n        (\"A\", \"C\"): 5,\n        (\"A\", \"D\"): 7,\n        (\"B\", \"D\"): 6,\n        (\"B\", \"E\"): 9,\n        (\"C\", \"F\"): 8,\n        (\"D\", \"F\"): 4,\n        (\"D\", \"G\"): 10,\n        (\"E\", \"G\"): 7,\n        (\"E\", \"H\"): 5,\n        (\"F\", \"consumer\"): 12,\n        (\"G\", \"consumer\"): 9,\n        (\"H\", \"G\"): 6,\n        (\"H\", \"consumer\"): 8\n    }\n    \n    cost = {\n        (\"plant\", \"A\"): 2,\n        (\"plant\", \"B\"): 3,\n        (\"A\", \"C\"): 1,\n        (\"A\", \"D\"): 2,\n        (\"B\", \"D\"): 4,\n        (\"B\", \"E\"): 2,\n        (\"C\", \"F\"): 3,\n        (\"D\", \"F\"): 5,\n        (\"D\", \"G\"): 1,\n        (\"E\", \"G\"): 3,\n        (\"E\", \"H\"): 2,\n        (\"F\", \"consumer\"): 2,\n        (\"G\", \"consumer\"): 4,\n        (\"H\", \"G\"): 1,\n        (\"H\", \"consumer\"): 3\n    }\n    \n    flow = {}\n    for arc in arcs:\n        flow[arc] = solver.NumVar(0, capacity[arc], f\"flow_{arc[0]}_{arc[1]}\")\n    \n    total_power = solver.NumVar(0, solver.infinity(), \"total_power\")\n    total_cost = solver.NumVar(0, solver.infinity(), \"total_cost\")\n    \n    for node in intermediate_nodes:\n        incoming = []\n        for arc in arcs:\n            if arc[1] == node:\n                incoming.append(flow[arc])\n        \n        outgoing = []\n        for arc in arcs:\n            if arc[0] == node:\n                outgoing.append(flow[arc])\n        \n        if incoming and outgoing:\n            solver.Add(solver.Sum(incoming) == solver.Sum(outgoing))\n    \n    consumer_inflows = []\n    for arc in arcs:\n        if arc[1] == \"consumer\":\n            consumer_inflows.append(flow[arc])\n    solver.Add(total_power == solver.Sum(consumer_inflows))\n    \n    cost_terms = []\n    for arc in arcs:\n        cost_terms.append(cost[arc] * flow[arc])\n    solver.Add(total_cost == solver.Sum(cost_terms))\n    \n    solver.Maximize(total_power)\n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        max_power_value = total_power.solution_value()\n        \n        step1_flows = {}\n        for arc in arcs:\n            step1_flows[arc] = flow[arc].solution_value()\n        \n        solver2 = pywraplp.Solver.CreateSolver(\"GLOP\")\n        if not solver2:\n            print(\"Could not create solver for step 2\")\n            return\n        \n        flow2 = {}\n        for arc in arcs:\n            flow2[arc] = solver2.NumVar(0, capacity[arc], f\"flow2_{arc[0]}_{arc[1]}\")\n        \n        total_power2 = solver2.NumVar(0, solver2.infinity(), \"total_power2\")\n        total_cost2 = solver2.NumVar(0, solver2.infinity(), \"total_cost2\")\n        \n        for node in intermediate_nodes:\n            incoming = []\n            for arc in arcs:\n                if arc[1] == node:\n                    incoming.append(flow2[arc])\n            \n            outgoing = []\n            for arc in arcs:\n                if arc[0] == node:\n                    outgoing.append(flow2[arc])\n            \n            if incoming and outgoing:\n                solver2.Add(solver2.Sum(incoming) == solver2.Sum(outgoing))\n        \n        consumer_inflows = []\n        for arc in arcs:\n            if arc[1] == \"consumer\":\n                consumer_inflows.append(flow2[arc])\n        solver2.Add(total_power2 == solver2.Sum(consumer_inflows))\n        \n        cost_terms = []\n        for arc in arcs:\n            cost_terms.append(cost[arc] * flow2[arc])\n        solver2.Add(total_cost2 == solver2.Sum(cost_terms))\n        \n        solver2.Add(total_power2 == max_power_value)\n        \n        solver2.Minimize(total_cost2)\n        \n        status2 = solver2.Solve()\n        \n        if status2 == pywraplp.Solver.OPTIMAL:\n            final_max_power = total_power2.solution_value()\n            final_total_cost = total_cost2.solution_value()\n            \n            node_to_index = {node: idx for idx, node in enumerate(nodes)}\n            power_allocation = []\n            for arc in arcs:\n                power = flow2[arc].solution_value()\n                if power > 1e-5:\n                    from_idx = node_to_index[arc[0]]\n                    to_idx = node_to_index[arc[1]]\n                    power_allocation.append([from_idx, to_idx, round(power)])\n            \n            print(json.dumps({\n                \"max_power\": round(final_max_power),\n                \"total_cost\": round(final_total_cost),\n                \"power_allocation\": power_allocation\n            }))\n        else:\n            print(f\"Solver status: {status2}\")\n    else:\n        print(f\"Solver status: {status}\")\n\nif __name__ == \"__main__\":\n    main()"
+}

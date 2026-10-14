@@ -1,0 +1,18 @@
+{
+    "problem_id": "minimum_vertex_cover_001",
+    "problem_type": "Minimum Vertex Cover Problem",
+    "difficulty": "simple",
+    "problem_description": "A city's transportation department needs to install surveillance cameras at key intersections to monitor all road segments in a small district. The district has 10 major intersections numbered 0 through 9. The road network consists of 15 road segments connecting these intersections: road segment from intersection 0 to 1, road segment from intersection 0 to 2, road segment from intersection 0 to 3, road segment from intersection 1 to 4, road segment from intersection 1 to 5, road segment from intersection 2 to 6, road segment from intersection 2 to 7, road segment from intersection 3 to 8, road segment from intersection 3 to 9, road segment from intersection 4 to 5, road segment from intersection 6 to 7, road segment from intersection 8 to 9, road segment from intersection 4 to 6, road segment from intersection 5 to 8, and road segment from intersection 7 to 9. Each camera placed at an intersection can monitor all road segments connected to that intersection. A road segment is considered covered if at least one of its two endpoint intersections has a camera installed. The transportation department wants to determine which intersections should have cameras installed to minimize the total number of cameras while ensuring complete coverage of all road segments.\n\nPrint the following fields: - selected_intersections: intersections where cameras should be installed. - num_cameras: total number of cameras.",
+    "reference_solution": {
+        "selected_intersections": [
+            1,
+            2,
+            3,
+            4,
+            7,
+            8
+        ],
+        "num_cameras": 6
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef solve_camera_placement():\n    I = list(range(10))\n    R = [\n        (0, 1), (0, 2), (0, 3),\n        (1, 4), (1, 5),\n        (2, 6), (2, 7),\n        (3, 8), (3, 9),\n        (4, 5), (6, 7), (8, 9),\n        (4, 6), (5, 8), (7, 9)\n    ]\n    \n    model = cp_model.CpModel()\n    \n    x = {}\n    for i in I:\n        x[i] = model.NewBoolVar(f\"x_{i}\")\n    \n    for i, j in R:\n        model.Add(x[i] + x[j] >= 1)\n    \n    model.Minimize(sum(x[i] for i in I))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 0\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        selected_intersections = [i for i in I if solver.Value(x[i]) == 1]\n        num_cameras = len(selected_intersections)\n        \n        print(json.dumps({\n            \"selected_intersections\": selected_intersections,\n            \"num_cameras\": num_cameras\n        }))\n    else:\n        print(json.dumps({\n            \"selected_intersections\": [],\n            \"num_cameras\": 0\n        }))\n\nif __name__ == \"__main__\":\n    solve_camera_placement()"
+}

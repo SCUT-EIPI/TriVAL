@@ -1,0 +1,57 @@
+{
+    "problem_id": "uncapacitated_warehouse_location_002",
+    "problem_type": "Uncapacitated Warehouse Location Problem",
+    "difficulty": "medium",
+    "problem_description": "A leading online retail platform is expanding its logistics network to improve delivery efficiency. The company is evaluating 3 strategic locations for establishing distribution centers to serve 8 major market areas. Each distribution center requires significant capital investment for construction and setup. Market areas have different projected quarterly order volumes based on historical growth patterns. Transportation costs vary between each potential distribution center and market area due to distance and infrastructure differences. The company needs to determine which distribution centers to establish and how to assign each market area to minimize total quarterly operational costs. This includes both fixed facility costs and variable transportation expenses. Each market area must be served completely by exactly one distribution center. Construction costs are $2150 thousand for Distribution Center Location 1, $1900 thousand for Distribution Center Location 2, and $2400 thousand for Distribution Center Location 3. Market areas have quarterly demands and per-order shipping costs: Market Area 1 has 90 thousand orders with costs $65, $85, $70; Market Area 2 has 110 thousand orders with costs $55, $50, $80; Market Area 3 has 95 thousand orders with costs $75, $90, $55; Market Area 4 has 120 thousand orders with costs $90, $70, $75; Market Area 5 has 80 thousand orders with costs $40, $100, $70; Market Area 6 has 135 thousand orders with costs $85, $60, $65; Market Area 7 has 100 thousand orders with costs $70, $90, $60; Market Area 8 has 90 thousand orders with costs $70, $80, $95 from the three distribution centers respectively.\n\nPrint the following fields: - total_cost: total construction and shipping cost. - warehouses_built: which distribution centers are opened. - assignments: market area assignments to distribution centers.",
+    "reference_solution": {
+        "total_cost": 54950.0,
+        "warehouses_built": [
+            1,
+            0,
+            1
+        ],
+        "assignments": [
+            [
+                1,
+                0,
+                0
+            ],
+            [
+                1,
+                0,
+                0
+            ],
+            [
+                0,
+                0,
+                1
+            ],
+            [
+                0,
+                0,
+                1
+            ],
+            [
+                1,
+                0,
+                0
+            ],
+            [
+                0,
+                0,
+                1
+            ],
+            [
+                0,
+                0,
+                1
+            ],
+            [
+                1,
+                0,
+                0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef solve_facility_location():\n    model = cp_model.CpModel()\n    \n    I = [1, 2, 3]\n    J = [1, 2, 3, 4, 5, 6, 7, 8]\n    \n    construction_cost = {\n        1: 2150,\n        2: 1900, \n        3: 2400\n    }\n    \n    demand = {\n        1: 90000,\n        2: 110000,\n        3: 95000,\n        4: 120000,\n        5: 80000,\n        6: 135000,\n        7: 100000,\n        8: 90000\n    }\n    \n    shipping_cost = {\n        (1, 1): 65, (2, 1): 85, (3, 1): 70,\n        (1, 2): 55, (2, 2): 50, (3, 2): 80,\n        (1, 3): 75, (2, 3): 90, (3, 3): 55,\n        (1, 4): 90, (2, 4): 70, (3, 4): 75,\n        (1, 5): 40, (2, 5): 100, (3, 5): 70,\n        (1, 6): 85, (2, 6): 60, (3, 6): 65,\n        (1, 7): 70, (2, 7): 90, (3, 7): 60,\n        (1, 8): 70, (2, 8): 80, (3, 8): 95\n    }\n    \n    open_vars = {}\n    for i in I:\n        open_vars[i] = model.NewBoolVar(f\"open_{i}\")\n    \n    assign_vars = {}\n    for i in I:\n        for j in J:\n            assign_vars[(i, j)] = model.NewBoolVar(f\"assign_{i}_{j}\")\n    \n    for j in J:\n        model.Add(sum(assign_vars[(i, j)] for i in I) == 1)\n    \n    for i in I:\n        for j in J:\n            model.Add(assign_vars[(i, j)] <= open_vars[i])\n    \n    construction_cost_expr = sum(construction_cost[i] * 1000 * open_vars[i] for i in I)\n    \n    transportation_cost_expr = sum(\n        demand[j] * shipping_cost[(i, j)] * assign_vars[(i, j)] \n        for i in I for j in J\n    )\n    \n    total_cost_expr = construction_cost_expr + transportation_cost_expr\n    \n    model.Minimize(total_cost_expr)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 0\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_cost = solver.ObjectiveValue()\n        \n        warehouses_built = [int(solver.Value(open_vars[i])) for i in I]\n        \n        assignments = []\n        for j in J:\n            assignment_vector = [int(solver.Value(assign_vars[(i, j)])) for i in I]\n            assignments.append(assignment_vector)\n        \n        print(json.dumps({\n            \"total_cost\": total_cost / 1000,\n            \"warehouses_built\": warehouses_built,\n            \"assignments\": assignments\n        }))\n    else:\n        print(json.dumps({\n            \"total_cost\": 0,\n            \"warehouses_built\": [0, 0, 0],\n            \"assignments\": [[0,0,0] for _ in J]\n        }))\n\nif __name__ == \"__main__\":\n    solve_facility_location()"
+}

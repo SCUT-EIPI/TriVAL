@@ -1,0 +1,28 @@
+{
+    "problem_id": "bin_packing_001",
+    "problem_type": "Bin Packing Problem",
+    "difficulty": "simple",
+    "problem_description": "A logistics company needs to pack a set of parcels into delivery trucks for an upcoming shipment. Each parcel has a specific volume, and all trucks have the same cargo capacity. To minimize fuel costs and the number of trips, the company wants to use as few trucks as possible while ensuring that the total volume of parcels in each truck does not exceed its capacity.\n\nThe company has prepared the following 10 parcels for loading:\n1. Parcel A: 45 cubic units\n2. Parcel B: 30 cubic units\n3. Parcel C: 25 cubic units\n4. Parcel D: 40 cubic units\n5. Parcel E: 35 cubic units\n6. Parcel F: 20 cubic units\n7. Parcel G: 15 cubic units\n8. Parcel H: 50 cubic units\n9. Parcel I: 10 cubic units\n10. Parcel J: 20 cubic units\n\nEach truck has a cargo capacity of 100 cubic units. The company needs to determine how to assign these 10 parcels to the trucks such that the total number of trucks used is minimized, and no truck exceeds its capacity. Each parcel must be loaded into exactly one truck.\n\nPrint the following fields: - num_trucks: total number of trucks used. - truck_loads: parcel indices assigned to each truck.",
+    "reference_solution": {
+        "num_trucks": 3,
+        "truck_loads": [
+            [
+                3,
+                7,
+                8
+            ],
+            [
+                0,
+                1,
+                5
+            ],
+            [
+                2,
+                4,
+                6,
+                9
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport numpy as np\nimport json\n\ndef solve_truck_loading():\n    n_parcels = 10\n    volumes = [45, 30, 25, 40, 35, 20, 15, 50, 10, 20]\n    capacity = 100\n    \n    max_trucks = n_parcels\n    \n    model = cp_model.CpModel()\n    \n    x = {}\n    for i in range(n_parcels):\n        for j in range(max_trucks):\n            x[i, j] = model.NewBoolVar(f\"x_{i}_{j}\")\n    \n    y = {}\n    for j in range(max_trucks):\n        y[j] = model.NewBoolVar(f\"y_{j}\")\n    \n    for i in range(n_parcels):\n        model.Add(sum(x[i, j] for j in range(max_trucks)) == 1)\n    \n    for j in range(max_trucks):\n        total_volume = sum(volumes[i] * x[i, j] for i in range(n_parcels))\n        model.Add(total_volume <= capacity * y[j])\n    \n    for i in range(n_parcels):\n        for j in range(max_trucks):\n            model.Add(x[i, j] <= y[j])\n    \n    model.Minimize(sum(y[j] for j in range(max_trucks)))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        used_trucks = []\n        for j in range(max_trucks):\n            if solver.Value(y[j]) == 1:\n                used_trucks.append(j)\n        \n        truck_loads = {}\n        for j in used_trucks:\n            parcels_in_truck = []\n            for i in range(n_parcels):\n                if solver.Value(x[i, j]) == 1:\n                    parcels_in_truck.append(i)\n            truck_loads[j] = parcels_in_truck\n\n        result_truck_loads = []\n        for j in sorted(used_trucks):\n            result_truck_loads.append(truck_loads[j])\n\n        print(json.dumps({\n            \"num_trucks\": len(used_trucks),\n            \"truck_loads\": result_truck_loads\n        }))\n            \n    else:\n        print(json.dumps({\n            \"num_trucks\": 0,\n            \"truck_loads\": []\n        }))\n\nif __name__ == \"__main__\":\n    solve_truck_loading()"
+}

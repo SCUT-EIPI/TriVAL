@@ -1,0 +1,27 @@
+{
+    "problem_id": "common_due_date_scheduling_003",
+    "problem_type": "Single Machine Common Due Date Scheduling Problem",
+    "difficulty": "hard",
+    "problem_description": "A software development team is planning the sequence of 15 tasks for their next sprint on a single developer workstation. To balance client expectations and resource allocation, they have identified a target completion date, calculated as 60% of the total estimated effort for all tasks. Finishing significantly before this date might lead to idle time or scope creep (earliness penalty), while finishing after it would disappoint clients (tardiness penalty). Each task has a specific estimated effort and associated penalties for deviating from the target date. The team wants to determine the optimal order to execute these tasks to minimize the total penalty. The details of the 15 tasks are as follows:\n1. Task 1: Effort 2d, Early Penalty $1/d, Late Penalty $3/d\n2. Task 2: Effort 4d, Early Penalty $2/d, Late Penalty $2/d\n3. Task 3: Effort 3d, Early Penalty $3/d, Late Penalty $1/d\n4. Task 4: Effort 5d, Early Penalty $1/d, Late Penalty $2/d\n5. Task 5: Effort 2d, Early Penalty $2/d, Late Penalty $3/d\n6. Task 6: Effort 4d, Early Penalty $3/d, Late Penalty $1/d\n7. Task 7: Effort 3d, Early Penalty $1/d, Late Penalty $2/d\n8. Task 8: Effort 5d, Early Penalty $2/d, Late Penalty $1/d\n9. Task 9: Effort 2d, Early Penalty $3/d, Late Penalty $2/d\n10. Task 10: Effort 4d, Early Penalty $1/d, Late Penalty $3/d\n11. Task 11: Effort 3d, Early Penalty $2/d, Late Penalty $1/d\n12. Task 12: Effort 5d, Early Penalty $3/d, Late Penalty $2/d\n13. Task 13: Effort 2d, Early Penalty $1/d, Late Penalty $3/d\n14. Task 14: Effort 4d, Early Penalty $2/d, Late Penalty $1/d\n15. Task 15: Effort 3d, Early Penalty $3/d, Late Penalty $2/d\n\nPrint the following fields: - task_sequence: optimal execution order for tasks. - total_cost: total penalty cost for the schedule.",
+    "reference_solution": {
+        "task_sequence": [
+            4,
+            10,
+            7,
+            1,
+            2,
+            13,
+            12,
+            15,
+            5,
+            9,
+            11,
+            3,
+            6,
+            14,
+            8
+        ],
+        "total_cost": 205.8
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef solve():\n    effort = [2, 4, 3, 5, 2, 4, 3, 5, 2, 4, 3, 5, 2, 4, 3]\n    early_pen = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]\n    late_pen = [3, 2, 1, 2, 3, 1, 2, 1, 2, 3, 1, 2, 3, 1, 2]\n    N = len(effort)\n    \n    total_effort = sum(effort)\n    target_date = 0.6 * total_effort\n    \n    model = cp_model.CpModel()\n    \n    target_scaled = int(round(target_date * 10))\n    effort_scaled = [e * 10 for e in effort]\n    total_effort_scaled = total_effort * 10\n    \n    starts = []\n    ends = []\n    intervals = []\n    \n    for i in range(N):\n        s = model.NewIntVar(0, total_effort_scaled, f's{i}')\n        e = model.NewIntVar(0, total_effort_scaled, f'e{i}')\n        interval = model.NewIntervalVar(s, effort_scaled[i], e, f'inter{i}')\n        starts.append(s)\n        ends.append(e)\n        intervals.append(interval)\n        \n    model.AddNoOverlap(intervals)\n    \n    total_penalty = model.NewIntVar(0, total_effort_scaled * 10, 'total_penalty')\n    penalties = []\n    \n    for i in range(N):\n        ei = model.NewIntVar(0, total_effort_scaled, f'early{i}')\n        ti = model.NewIntVar(0, total_effort_scaled, f'late{i}')\n        model.Add(ends[i] - target_scaled == ti - ei)\n        \n        p = model.NewIntVar(0, total_effort_scaled * 10, f'p{i}')\n        model.Add(p == ei * early_pen[i] + ti * late_pen[i])\n        penalties.append(p)\n        \n    model.Add(total_penalty == sum(penalties))\n    model.Minimize(total_penalty)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        task_end_times = [(i + 1, solver.Value(ends[i])) for i in range(N)]\n        task_end_times.sort(key=lambda x: x[1])\n        sequence = [x[0] for x in task_end_times]\n        print(json.dumps({\n            \"task_sequence\": sequence,\n            \"total_cost\": solver.Value(total_penalty) / 10.0\n        }))\n\nif __name__ == '__main__':\n    solve()\n"
+}

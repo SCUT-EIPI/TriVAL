@@ -1,0 +1,25 @@
+{
+    "problem_id": "mkp_001",
+    "problem_type": "Multidimensional Knapsack Problem",
+    "difficulty": "simple",
+    "problem_description": "In a classified archaeological operation within the temporal anomaly zone beneath ancient Mesopotamian ruins, researchers have discovered a containment field holding ten artifacts with quantum-resonant properties. Each artifact possesses four measurable characteristics: historical significance value (in archaeological significance points, ASP), mass in kilograms, spatial volume in cubic decimeters, and quantum instability measured in temporal instability units (TIU). The extraction system operates under strict dimensional constraints: maximum mass capacity of 20 kg, volume limit of 15 dm^3, and quantum instability threshold of 10 TIU. The artifacts exhibit the following specifications: 1. Chronometric Vessel: significance 100 ASP, mass 5 kg, volume 3 dm^3, instability 2 TIU. 2. Auric Effigy: significance 80 ASP, mass 4 kg, volume 2 dm^3, instability 1 TIU. 3. Crystalline Ocular: significance 90 ASP, mass 6 kg, volume 4 dm^3, instability 3 TIU. 4. Metallocene Barrier: significance 70 ASP, mass 3 kg, volume 2 dm^3, instability 1 TIU. 5. Gematria Diadem: significance 110 ASP, mass 7 kg, volume 5 dm^3, instability 4 TIU. 6. Argentine Blade: significance 60 ASP, mass 2 kg, volume 1 dm^3, instability 1 TIU. 7. Carbon Allotrope Chain: significance 120 ASP, mass 8 kg, volume 6 dm^3, instability 5 TIU. 8. Ferrous Access Mechanism: significance 50 ASP, mass 1 kg, volume 1 dm^3, instability 1 TIU. 9. Beryl Inscription Matrix: significance 130 ASP, mass 9 kg, volume 7 dm^3, instability 6 TIU. 10. Xylic Anthropomorphic Form: significance 40 ASP, mass 2 kg, volume 1 dm^3, instability 1 TIU. Each artifact can either be extracted (selection value 1) or left behind (selection value 0). Which combination of artifacts should be extracted to achieve maximum total historical significance while respecting all dimensional constraints?\n\nPrint the following fields: - selected: extraction status for each artifact. - total_significance: total historical significance. - total_mass: total mass. - total_volume: total volume. - total_instability: total quantum instability.",
+    "reference_solution": {
+        "selected": [
+            1,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            1
+        ],
+        "total_significance": 430,
+        "total_mass": 20,
+        "total_volume": 13,
+        "total_instability": 10
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef main():\n    n = 10\n    \n    significance = [100, 80, 90, 70, 110, 60, 120, 50, 130, 40]\n    mass = [5, 4, 6, 3, 7, 2, 8, 1, 9, 2]\n    volume = [3, 2, 4, 2, 5, 1, 6, 1, 7, 1]\n    instability = [2, 1, 3, 1, 4, 1, 5, 1, 6, 1]\n    \n    max_mass = 20\n    max_volume = 15\n    max_instability = 10\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    if not solver:\n        print(\"Failed to create solver\")\n        return\n    \n    selected = []\n    for i in range(n):\n        selected.append(solver.BoolVar(f\"selected[{i}]\"))\n    \n    mass_constraint = solver.Constraint(0, max_mass)\n    for i in range(n):\n        mass_constraint.SetCoefficient(selected[i], mass[i])\n    \n    volume_constraint = solver.Constraint(0, max_volume)\n    for i in range(n):\n        volume_constraint.SetCoefficient(selected[i], volume[i])\n    \n    instability_constraint = solver.Constraint(0, max_instability)\n    for i in range(n):\n        instability_constraint.SetCoefficient(selected[i], instability[i])\n    \n    objective = solver.Objective()\n    for i in range(n):\n        objective.SetCoefficient(selected[i], significance[i])\n    objective.SetMaximization()\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        total_significance = 0\n        total_mass = 0\n        total_volume = 0\n        total_instability = 0\n        selected_status = []\n        \n        for i in range(n):\n            if selected[i].solution_value() > 0.5:\n                selected_status.append(1)\n                total_significance += significance[i]\n                total_mass += mass[i]\n                total_volume += volume[i]\n                total_instability += instability[i]\n            else:\n                selected_status.append(0)\n        \n        print(json.dumps({\n            \"selected\": selected_status,\n            \"total_significance\": total_significance,\n            \"total_mass\": total_mass,\n            \"total_volume\": total_volume,\n            \"total_instability\": total_instability\n        }))\n    else:\n        print(f\"Solver status: {status}\")\n        if status == pywraplp.Solver.INFEASIBLE:\n            print(\"Problem is infeasible\")\n        elif status == pywraplp.Solver.UNBOUNDED:\n            print(\"Problem is unbounded\")\n\nif __name__ == \"__main__\":\n    main()"
+}

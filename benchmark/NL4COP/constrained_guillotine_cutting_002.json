@@ -1,0 +1,92 @@
+{
+    "problem_id": "constrained_guillotine_cutting_002",
+    "problem_type": "Constrained Guillotine Cutting Problem",
+    "difficulty": "medium",
+    "problem_description": "A furniture manufacturer has a wooden board measuring 35 feet by 25 feet and needs to cut it into smaller rectangular pieces for various furniture components using a guillotine cutting process. The manufacturer wants to maximize the total value of the pieces obtained from this board. In guillotine cutting, each cut must be a straight line that goes completely from one edge to another without cutting through any placed piece, and this property must hold recursively for all resulting subregions. The pieces must be placed with their edges parallel to the board edges (no 90-degree rotation allowed) and must fit entirely within the board without overlapping. Each piece type has a maximum quantity limit that cannot be exceeded.\n\nHere are the details of the furniture pieces needed:\n1. Furniture Type 1: Size 10ft x 8ft, Value 80, Up to 2 pieces can be cut\n2. Furniture Type 2: Size 12ft x 6ft, Value 72, Up to 2 pieces can be cut\n3. Furniture Type 3: Size 8ft x 8ft, Value 64, Up to 3 pieces can be cut\n4. Furniture Type 4: Size 6ft x 10ft, Value 60, Up to 2 pieces can be cut\n5. Furniture Type 5: Size 15ft x 5ft, Value 75, Up to 1 piece can be cut\n\nPrint the following fields: - total_value: total value of placed pieces. - placements: for each piece, list placements with piece type, x, y, length, width, orientation.",
+    "reference_solution": {
+        "total_value": 691,
+        "placements": [
+            [
+                1,
+                7,
+                1,
+                10,
+                8,
+                0
+            ],
+            [
+                3,
+                9,
+                16,
+                8,
+                8,
+                0
+            ],
+            [
+                2,
+                17,
+                1,
+                12,
+                6,
+                0
+            ],
+            [
+                4,
+                1,
+                1,
+                6,
+                10,
+                0
+            ],
+            [
+                5,
+                1,
+                11,
+                15,
+                5,
+                0
+            ],
+            [
+                4,
+                29,
+                15,
+                6,
+                10,
+                0
+            ],
+            [
+                2,
+                17,
+                16,
+                12,
+                6,
+                0
+            ],
+            [
+                3,
+                1,
+                16,
+                8,
+                8,
+                0
+            ],
+            [
+                3,
+                17,
+                7,
+                8,
+                8,
+                0
+            ],
+            [
+                1,
+                25,
+                7,
+                10,
+                8,
+                0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef solve_guillotine_cutting():\n    board_length = 35\n    board_width = 25\n    \n    piece_types = [1, 2, 3, 4, 5]\n    \n    length_i = {1: 10, 2: 12, 3: 8, 4: 6, 5: 15}\n    width_i = {1: 8, 2: 6, 3: 8, 4: 10, 5: 5}\n    value_i = {1: 80, 2: 72, 3: 64, 4: 60, 5: 75}\n    max_qty_i = {1: 2, 2: 2, 3: 3, 4: 2, 5: 1}\n    \n    max_total_pieces = sum(max_qty_i.values())\n    \n    model = cp_model.CpModel()\n    \n    n = model.NewIntVar(0, max_total_pieces, \"n\")\n    \n    type_k = []\n    x_k = []\n    y_k = []\n    l_k = []\n    w_k = []\n    active_k = []\n    \n    for k in range(max_total_pieces):\n        active = model.NewBoolVar(f\"active_{k}\")\n        active_k.append(active)\n        \n        type_var = model.NewIntVar(0, 5, f\"type_{k}\")\n        type_k.append(type_var)\n        \n        x_var = model.NewIntVar(0, board_length, f\"x_{k}\")\n        y_var = model.NewIntVar(0, board_width, f\"y_{k}\")\n        l_var = model.NewIntVar(0, board_length, f\"l_{k}\")\n        w_var = model.NewIntVar(0, board_width, f\"w_{k}\")\n        \n        x_k.append(x_var)\n        y_k.append(y_var)\n        l_k.append(l_var)\n        w_k.append(w_var)\n        \n        model.Add(type_var == 0).OnlyEnforceIf(active.Not())\n        model.Add(x_var == 0).OnlyEnforceIf(active.Not())\n        model.Add(y_var == 0).OnlyEnforceIf(active.Not())\n        model.Add(l_var == 0).OnlyEnforceIf(active.Not())\n        model.Add(w_var == 0).OnlyEnforceIf(active.Not())\n    \n    model.Add(n == sum(active_k))\n    \n    for i in piece_types:\n        count_i = []\n        for k in range(max_total_pieces):\n            is_type_i = model.NewBoolVar(f\"is_type_{i}_piece_{k}\")\n            model.Add(type_k[k] == i).OnlyEnforceIf(is_type_i)\n            model.Add(type_k[k] != i).OnlyEnforceIf(is_type_i.Not())\n            model.Add(is_type_i <= active_k[k])\n            \n            model.AddImplication(is_type_i, active_k[k])\n            \n            count_i.append(is_type_i)\n        \n        model.Add(sum(count_i) <= max_qty_i[i])\n    \n    for k in range(max_total_pieces):\n        for i in piece_types:\n            is_type_i = model.NewBoolVar(f\"dim_type_{i}_piece_{k}\")\n            model.Add(type_k[k] == i).OnlyEnforceIf(is_type_i)\n            model.Add(type_k[k] != i).OnlyEnforceIf(is_type_i.Not())\n            \n            model.AddImplication(is_type_i, active_k[k])\n            \n            model.Add(l_k[k] == length_i[i]).OnlyEnforceIf(is_type_i)\n            model.Add(w_k[k] == width_i[i]).OnlyEnforceIf(is_type_i)\n    \n    for k in range(max_total_pieces):\n        model.Add(x_k[k] + l_k[k] <= board_length).OnlyEnforceIf(active_k[k])\n        model.Add(y_k[k] + w_k[k] <= board_width).OnlyEnforceIf(active_k[k])\n    \n    for k in range(max_total_pieces):\n        for m in range(k + 1, max_total_pieces):\n            both_active = model.NewBoolVar(f\"both_active_{k}_{m}\")\n            model.AddBoolAnd([active_k[k], active_k[m]]).OnlyEnforceIf(both_active)\n            model.AddBoolOr([active_k[k].Not(), active_k[m].Not()]).OnlyEnforceIf(both_active.Not())\n            \n            left_of = model.NewBoolVar(f\"left_of_{k}_{m}\")\n            right_of = model.NewBoolVar(f\"right_of_{k}_{m}\")\n            below = model.NewBoolVar(f\"below_{k}_{m}\")\n            above = model.NewBoolVar(f\"above_{k}_{m}\")\n            \n            model.Add(x_k[k] + l_k[k] <= x_k[m]).OnlyEnforceIf(left_of)\n            model.Add(x_k[m] + l_k[m] <= x_k[k]).OnlyEnforceIf(right_of)\n            model.Add(y_k[k] + w_k[k] <= y_k[m]).OnlyEnforceIf(below)\n            model.Add(y_k[m] + w_k[m] <= y_k[k]).OnlyEnforceIf(above)\n            \n            model.AddBoolOr([left_of, right_of, below, above]).OnlyEnforceIf(both_active)\n    \n    for k in range(max_total_pieces):\n        for m in range(k + 1, max_total_pieces):\n            both_active = model.NewBoolVar(f\"guillotine_both_active_{k}_{m}\")\n            model.AddBoolAnd([active_k[k], active_k[m]]).OnlyEnforceIf(both_active)\n            model.AddBoolOr([active_k[k].Not(), active_k[m].Not()]).OnlyEnforceIf(both_active.Not())\n            \n            vert_sep = model.NewBoolVar(f\"vert_sep_{k}_{m}\")\n            k_left_of_m = model.NewBoolVar(f\"k_left_of_m_{k}_{m}\")\n            m_left_of_k = model.NewBoolVar(f\"m_left_of_k_{k}_{m}\")\n            \n            model.Add(x_k[k] + l_k[k] <= x_k[m]).OnlyEnforceIf(k_left_of_m)\n            model.Add(x_k[m] + l_k[m] <= x_k[k]).OnlyEnforceIf(m_left_of_k)\n            \n            model.AddBoolOr([k_left_of_m, m_left_of_k, vert_sep.Not()]).OnlyEnforceIf(both_active)\n            \n            horiz_sep = model.NewBoolVar(f\"horiz_sep_{k}_{m}\")\n            k_below_m = model.NewBoolVar(f\"k_below_m_{k}_{m}\")\n            m_below_k = model.NewBoolVar(f\"m_below_k_{k}_{m}\")\n            \n            model.Add(y_k[k] + w_k[k] <= y_k[m]).OnlyEnforceIf(k_below_m)\n            model.Add(y_k[m] + w_k[m] <= y_k[k]).OnlyEnforceIf(m_below_k)\n            \n            model.AddBoolOr([k_below_m, m_below_k, horiz_sep.Not()]).OnlyEnforceIf(both_active)\n            \n            model.AddBoolOr([vert_sep, horiz_sep]).OnlyEnforceIf(both_active)\n    \n    total_value = 0\n    for k in range(max_total_pieces):\n        for i in piece_types:\n            is_type_i = model.NewBoolVar(f\"obj_type_{i}_piece_{k}\")\n            model.Add(type_k[k] == i).OnlyEnforceIf(is_type_i)\n            model.Add(type_k[k] != i).OnlyEnforceIf(is_type_i.Not())\n            model.AddImplication(is_type_i, active_k[k])\n            \n            total_value += value_i[i] * is_type_i\n    \n    model.Maximize(total_value)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 60.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_val = int(solver.ObjectiveValue())\n        placements = []\n        for k in range(max_total_pieces):\n            if solver.Value(active_k[k]) == 1:\n                piece_type = solver.Value(type_k[k])\n                if piece_type > 0:\n                    x = solver.Value(x_k[k])\n                    y = solver.Value(y_k[k])\n                    l = solver.Value(l_k[k])\n                    w = solver.Value(w_k[k])\n                    placements.append([piece_type, x, y, l, w, 0])\n        print(json.dumps({\"total_value\": total_val, \"placements\": placements}))\n    else:\n        print(json.dumps({\"total_value\": 0, \"placements\": []}))\n\nif __name__ == \"__main__\":\n    solve_guillotine_cutting()"
+}

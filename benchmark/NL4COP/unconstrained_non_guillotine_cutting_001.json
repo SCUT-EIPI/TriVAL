@@ -1,0 +1,48 @@
+{
+    "problem_id": "unconstrained_non_guillotine_cutting_001",
+    "problem_type": "Unconstrained Non-Guillotine Cutting Problem",
+    "difficulty": "simple",
+    "problem_description": "An advanced manufacturing optimization facility is addressing a sophisticated spatial arrangement challenge involving non-sequential panel placement on a rectangular workspace measuring 20 by 15 centimeters. This non-guillotine cutting approach allows components to be placed freely anywhere on the board without requiring cuts to follow any specific sequence or extend across the entire workspace. The manufacturing inventory encompasses three distinct fabric categories: Category 1 components with dimensions 5x4 centimeters, valuation of 20 hundred dollars, and maximum allowable quantity of 2 pieces; Category 2 components with dimensions 6x3 centimeters, valuation of 18 hundred dollars, and maximum allowable quantity of 2 pieces; Category 3 components with dimensions 4x4 centimeters, valuation of 16 hundred dollars, and maximum allowable quantity of 2 pieces. Each component permits 90-degree rotational adjustment and can be positioned at any coordinate within the workspace boundaries, provided that spatial overlapping is avoided and complete containment within the perimeter is maintained. Manufacturing engineers must determine how to arrange the components to achieve maximum total value, with no constraints on placement order or cutting sequence.\n\nPrint the following fields: - placements: for each piece, list placement with type, x, y, rotation. - total_value: total value of placed pieces.",
+    "reference_solution": {
+        "placements": [
+            [
+                0,
+                10,
+                3,
+                0
+            ],
+            [
+                0,
+                15,
+                7,
+                0
+            ],
+            [
+                1,
+                14,
+                0,
+                0
+            ],
+            [
+                1,
+                4,
+                3,
+                0
+            ],
+            [
+                2,
+                10,
+                7,
+                0
+            ],
+            [
+                2,
+                0,
+                11,
+                0
+            ]
+        ],
+        "total_value": 108
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_cutting_problem():\n    W = 20\n    H = 15\n    \n    categories = [1, 2, 3]\n    dim_w = {1: 5, 2: 6, 3: 4}\n    dim_h = {1: 4, 2: 3, 3: 4}\n    value = {1: 20, 2: 18, 3: 16}\n    max_qty = {1: 2, 2: 2, 3: 2}\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    INF = solver.infinity()\n    solver.SetTimeLimit(30000)\n    \n    place = {}\n    x = {}\n    y = {}\n    rot = {}\n    \n    for c in categories:\n        place[c] = {}\n        x[c] = {}\n        y[c] = {}\n        rot[c] = {}\n        for i in range(1, max_qty[c] + 1):\n            place[c][i] = solver.BoolVar(f\"place_{c}_{i}\")\n            x[c][i] = solver.NumVar(0, W, f\"x_{c}_{i}\")\n            y[c][i] = solver.NumVar(0, H, f\"y_{c}_{i}\")\n            rot[c][i] = solver.BoolVar(f\"rot_{c}_{i}\")\n    \n    for c in categories:\n        for i in range(1, max_qty[c] + 1):\n            M = W + H\n            solver.Add(x[c][i] + dim_w[c] <= W + \n                      rot[c][i] * (dim_w[c] - dim_h[c]) + (1 - place[c][i]) * M)\n            \n            solver.Add(y[c][i] + dim_h[c] <= H + \n                      rot[c][i] * (dim_h[c] - dim_w[c]) + (1 - place[c][i]) * M)\n            \n            solver.Add(x[c][i] <= place[c][i] * W)\n            solver.Add(y[c][i] <= place[c][i] * H)\n    \n    all_pieces = []\n    for c in categories:\n        for i in range(1, max_qty[c] + 1):\n            all_pieces.append((c, i))\n    \n    for idx1, (c1, i1) in enumerate(all_pieces):\n        for idx2, (c2, i2) in enumerate(all_pieces):\n            if idx1 >= idx2:\n                continue\n            \n            cond1 = solver.BoolVar(f\"cond1_{c1}_{i1}_{c2}_{i2}\")\n            cond2 = solver.BoolVar(f\"cond2_{c1}_{i1}_{c2}_{i2}\")\n            cond3 = solver.BoolVar(f\"cond3_{c1}_{i1}_{c2}_{i2}\")\n            cond4 = solver.BoolVar(f\"cond4_{c1}_{i1}_{c2}_{i2}\")\n            \n            M = W + H\n            solver.Add(x[c1][i1] + dim_w[c1] <= x[c2][i2] + \n                      rot[c1][i1] * (dim_w[c1] - dim_h[c1]) + (1 - cond1) * M)\n            \n            solver.Add(x[c2][i2] + dim_w[c2] <= x[c1][i1] + \n                      rot[c2][i2] * (dim_w[c2] - dim_h[c2]) + (1 - cond2) * M)\n            \n            solver.Add(y[c1][i1] + dim_h[c1] <= y[c2][i2] + \n                      rot[c1][i1] * (dim_h[c1] - dim_w[c1]) + (1 - cond3) * M)\n            \n            solver.Add(y[c2][i2] + dim_h[c2] <= y[c1][i1] + \n                      rot[c2][i2] * (dim_h[c2] - dim_w[c2]) + (1 - cond4) * M)\n            \n            solver.Add(cond1 + cond2 + cond3 + cond4 + (1 - place[c1][i1]) + (1 - place[c2][i2]) >= 1)\n    \n    objective = solver.Objective()\n    for c in categories:\n        for i in range(1, max_qty[c] + 1):\n            objective.SetCoefficient(place[c][i], value[c])\n    objective.SetMaximization()\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:\n        placements = []\n        total_value = 0\n        \n        for c in categories:\n            for i in range(1, max_qty[c] + 1):\n                if place[c][i].solution_value() > 0.5:\n                    x_val = x[c][i].solution_value()\n                    y_val = y[c][i].solution_value()\n                    rot_val = int(rot[c][i].solution_value() > 0.5)\n                    placements.append([\n                        c - 1,\n                        round(x_val),\n                        round(y_val),\n                        rot_val\n                    ])\n                    total_value += value[c]\n        \n        print(json.dumps({\n            \"placements\": placements,\n            \"total_value\": total_value\n        }))\n    else:\n        print(json.dumps({\n            \"placements\": [],\n            \"total_value\": 0\n        }))\n\nif __name__ == \"__main__\":\n    solve_cutting_problem()"
+}

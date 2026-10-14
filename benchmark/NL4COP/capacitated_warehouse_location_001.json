@@ -1,0 +1,36 @@
+{
+    "problem_id": "capacitated_warehouse_location_001",
+    "problem_type": "Capacitated Warehouse Location Problem",
+    "difficulty": "simple",
+    "problem_description": "A retail company is expanding its distribution network to serve five major store locations in the region. The company has identified two potential warehouse sites to establish distribution centers. Each warehouse site has different setup costs and storage capacities. The company needs to decide which warehouses to open and how to distribute the store orders among them to minimize total expenses while ensuring all stores receive their required inventory. The stores have varying order quantities, and the transportation costs differ depending on which warehouse supplies each store. The company wants to find the most cost-effective way to meet all store demands without exceeding any warehouse's storage limit.\n\nWarehouse details:\n1. Site A: Can store up to 100 units, requires $5000 to set up\n2. Site B: Can store up to 150 units, requires $7000 to set up\n\nStore order requirements and transportation costs:\n1. Store 1: Needs 50 units, costs $10/unit from Site A or $15/unit from Site B\n2. Store 2: Needs 70 units, costs $12/unit from Site A or $8/unit from Site B\n3. Store 3: Needs 40 units, costs $20/unit from Site A or $18/unit from Site B\n4. Store 4: Needs 60 units, costs $14/unit from Site A or $11/unit from Site B\n5. Store 5: Needs 30 units, costs $18/unit from Site A or $16/unit from Site B\n\nEach store's entire order must be fulfilled, but it can be split between the two warehouses if that reduces total costs. The company aims to minimize the sum of warehouse setup costs and transportation costs while ensuring no warehouse receives more orders than it can handle.\n\nPrint the following fields: - total_cost: total cost including setup and transportation. - distribution_center_open: which warehouses are open. - order_allocations: how much each store orders from each warehouse.",
+    "reference_solution": {
+        "total_cost": 15020,
+        "distribution_center_open": [
+            1,
+            1
+        ],
+        "order_allocations": [
+            [
+                50,
+                0
+            ],
+            [
+                0,
+                70
+            ],
+            [
+                20,
+                20
+            ],
+            [
+                0,
+                60
+            ],
+            [
+                30,
+                0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef main():\n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    INF = solver.infinity()\n    \n    warehouses = ['A', 'B']\n    stores = [1, 2, 3, 4, 5]\n    \n    capacity = {'A': 100, 'B': 150}\n    \n    setup_cost = {'A': 5000, 'B': 7000}\n    \n    demand = {1: 50, 2: 70, 3: 40, 4: 60, 5: 30}\n    \n    trans_cost = {\n        ('A', 1): 10, ('B', 1): 15,\n        ('A', 2): 12, ('B', 2): 8,\n        ('A', 3): 20, ('B', 3): 18,\n        ('A', 4): 14, ('B', 4): 11,\n        ('A', 5): 18, ('B', 5): 16\n    }\n    \n    open_var = {}\n    for i in warehouses:\n        open_var[i] = solver.BoolVar(f\"open_{i}\")\n    \n    ship_var = {}\n    for i in warehouses:\n        for j in stores:\n            ship_var[(i, j)] = solver.NumVar(0, INF, f\"ship_{i}_{j}\")\n    \n    for j in stores:\n        constraint = sum(ship_var[(i, j)] for i in warehouses) == demand[j]\n        solver.Add(constraint)\n    \n    for i in warehouses:\n        constraint = sum(ship_var[(i, j)] for j in stores) <= capacity[i]\n        solver.Add(constraint)\n    \n    for i in warehouses:\n        constraint = sum(ship_var[(i, j)] for j in stores) <= capacity[i] * open_var[i]\n        solver.Add(constraint)\n    \n    setup_cost_expr = sum(setup_cost[i] * open_var[i] for i in warehouses)\n    trans_cost_expr = sum(trans_cost[(i, j)] * ship_var[(i, j)] for i in warehouses for j in stores)\n    \n    solver.Minimize(setup_cost_expr + trans_cost_expr)\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        total_cost = int(solver.Objective().Value())\n        \n        distribution_center_open = []\n        for i in warehouses:\n            distribution_center_open.append(1 if open_var[i].solution_value() > 0.5 else 0)\n        \n        order_allocations = []\n        for j in stores:\n            store_alloc = []\n            for i in warehouses:\n                value = ship_var[(i, j)].solution_value()\n                store_alloc.append(int(round(value)))\n            order_allocations.append(store_alloc)\n        \n        print(json.dumps({\n            \"total_cost\": total_cost,\n            \"distribution_center_open\": distribution_center_open,\n            \"order_allocations\": order_allocations\n        }))\n        \n    else:\n        print(f\"Solver status: {status}\")\n        if status == pywraplp.Solver.INFEASIBLE:\n            print(\"Problem is infeasible\")\n        elif status == pywraplp.Solver.UNBOUNDED:\n            print(\"Problem is unbounded\")\n\nif __name__ == \"__main__\":\n    main()"
+}

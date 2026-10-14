@@ -1,0 +1,41 @@
+{
+    "problem_id": "mkp_002",
+    "problem_type": "Multidimensional Knapsack Problem",
+    "difficulty": "medium",
+    "problem_description": "In a quantum logistics operation, a dimensional transport vessel must select from twenty-five quantum cargo modules for interstellar delivery. Each module has five measurable characteristics: economic value in quantum credit units (QCU), mass in metric tons, volume in cubic meters, structural integrity in fragility units (FU), and cooling energy consumption in cooling energy units (CEU). The vessel operates under strict constraints: maximum mass capacity of 50 tons, volume limit of 40 m³, integrity threshold of 20 FU, and cooling energy capacity of 25 CEU. The cargo modules have the following specifications: 1. Quantum Resonator: value 22 QCU, mass 3 tons, volume 2 m³, integrity 1 FU, energy 2 CEU. 2. Temporal Stabilizer: value 35 QCU, mass 5 tons, volume 3 m³, integrity 2 FU, energy 1 CEU. 3. Phase Shifter: value 18 QCU, mass 2 tons, volume 1 m³, integrity 0 FU, energy 1 CEU. 4. Dimensional Anchor: value 48 QCU, mass 7 tons, volume 4 m³, integrity 3 FU, energy 2 CEU. 5. Reality Bender: value 30 QCU, mass 4 tons, volume 3 m³, integrity 1 FU, energy 1 CEU. 6. Space Compressor: value 15 QCU, mass 1 ton, volume 1 m³, integrity 0 FU, energy 1 CEU. 7. Time Dilation Field: value 55 QCU, mass 8 tons, volume 5 m³, integrity 2 FU, energy 3 CEU. 8. Wormhole Generator: value 28 QCU, mass 3 tons, volume 2 m³, integrity 1 FU, energy 2 CEU. 9. Probability Manipulator: value 40 QCU, mass 6 tons, volume 4 m³, integrity 2 FU, energy 1 CEU. 10. Matter Transmuter: value 50 QCU, mass 7 tons, volume 5 m³, integrity 3 FU, energy 2 CEU. 11. Energy Converter: value 12 QCU, mass 1 ton, volume 1 m³, integrity 0 FU, energy 1 CEU. 12. Fusion Reactor Core: value 60 QCU, mass 9 tons, volume 6 m³, integrity 1 FU, energy 4 CEU. 13. Antimatter Container: value 25 QCU, mass 3 tons, volume 2 m³, integrity 1 FU, energy 1 CEU. 14. Plasma Conduit: value 45 QCU, mass 6 tons, volume 4 m³, integrity 2 FU, energy 2 CEU. 15. Dark Matter Harvester: value 32 QCU, mass 4 tons, volume 3 m³, integrity 1 FU, energy 1 CEU. 16. Neutronium Alloy: value 20 QCU, mass 2 tons, volume 2 m³, integrity 0 FU, energy 1 CEU. 17. Tachyon Emitter: value 38 QCU, mass 5 tons, volume 3 m³, integrity 2 FU, energy 2 CEU. 18. Quantum Computer: value 52 QCU, mass 7 tons, volume 5 m³, integrity 3 FU, energy 3 CEU. 19. Neural Interface: value 42 QCU, mass 6 tons, volume 4 m³, integrity 2 FU, energy 1 CEU. 20. Singularity Drive: value 58 QCU, mass 8 tons, volume 6 m³, integrity 1 FU, energy 4 CEU. 21. Photonic Crystal: value 16 QCU, mass 2 tons, volume 1 m³, integrity 0 FU, energy 1 CEU. 22. Graviton Projector: value 35 QCU, mass 4 tons, volume 3 m³, integrity 1 FU, energy 2 CEU. 23. Exotic Matter: value 48 QCU, mass 6 tons, volume 4 m³, integrity 2 FU, energy 2 CEU. 24. Zero-point Module: value 28 QCU, mass 3 tons, volume 2 m³, integrity 1 FU, energy 1 CEU. 25. Hyperdrive Core: value 40 QCU, mass 5 tons, volume 3 m³, integrity 1 FU, energy 2 CEU. Each module can either be selected (value 1) or excluded (value 0). Which combination of modules should be selected to maximize total quantum credit value while respecting all constraints?\n\nPrint the following fields: - selected: selection status for each module. - total_quantum_value: total quantum value. - total_mass: total mass. - total_volume: total volume. - total_integrity: total integrity. - total_cooling_energy: total cooling energy.",
+    "reference_solution": {
+        "selected": [
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        "total_quantum_value": 422,
+        "total_mass": 50,
+        "total_volume": 34,
+        "total_integrity": 13,
+        "total_cooling_energy": 22
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef solve_quantum_logistics():\n    \"\"\"Solve the quantum cargo module selection problem.\"\"\"\n    \n    N = 25\n    \n    modules = [\n        (\"Quantum Resonator\", 22, 3, 2, 1, 2),\n        (\"Temporal Stabilizer\", 35, 5, 3, 2, 1),\n        (\"Phase Shifter\", 18, 2, 1, 0, 1),\n        (\"Dimensional Anchor\", 48, 7, 4, 3, 2),\n        (\"Reality Bender\", 30, 4, 3, 1, 1),\n        (\"Space Compressor\", 15, 1, 1, 0, 1),\n        (\"Time Dilation Field\", 55, 8, 5, 2, 3),\n        (\"Wormhole Generator\", 28, 3, 2, 1, 2),\n        (\"Probability Manipulator\", 40, 6, 4, 2, 1),\n        (\"Matter Transmuter\", 50, 7, 5, 3, 2),\n        (\"Energy Converter\", 12, 1, 1, 0, 1),\n        (\"Fusion Reactor Core\", 60, 9, 6, 1, 4),\n        (\"Antimatter Container\", 25, 3, 2, 1, 1),\n        (\"Plasma Conduit\", 45, 6, 4, 2, 2),\n        (\"Dark Matter Harvester\", 32, 4, 3, 1, 1),\n        (\"Neutronium Alloy\", 20, 2, 2, 0, 1),\n        (\"Tachyon Emitter\", 38, 5, 3, 2, 2),\n        (\"Quantum Computer\", 52, 7, 5, 3, 3),\n        (\"Neural Interface\", 42, 6, 4, 2, 1),\n        (\"Singularity Drive\", 58, 8, 6, 1, 4),\n        (\"Photonic Crystal\", 16, 2, 1, 0, 1),\n        (\"Graviton Projector\", 35, 4, 3, 1, 2),\n        (\"Exotic Matter\", 48, 6, 4, 2, 2),\n        (\"Zero-point Module\", 28, 3, 2, 1, 1),\n        (\"Hyperdrive Core\", 40, 5, 3, 1, 2)\n    ]\n    \n    value = [modules[i][1] for i in range(N)]\n    mass = [modules[i][2] for i in range(N)]\n    volume = [modules[i][3] for i in range(N)]\n    integrity = [modules[i][4] for i in range(N)]\n    cooling = [modules[i][5] for i in range(N)]\n    \n    max_mass = 50\n    max_volume = 40\n    max_integrity = 20\n    max_cooling = 25\n    \n    model = cp_model.CpModel()\n    \n    x = [model.NewBoolVar(f\"x[{i}]\") for i in range(N)]\n    \n    model.Add(sum(mass[i] * x[i] for i in range(N)) <= max_mass)\n    \n    model.Add(sum(volume[i] * x[i] for i in range(N)) <= max_volume)\n    \n    model.Add(sum(integrity[i] * x[i] for i in range(N)) <= max_integrity)\n    \n    model.Add(sum(cooling[i] * x[i] for i in range(N)) <= max_cooling)\n    \n    objective = sum(value[i] * x[i] for i in range(N))\n    model.Maximize(objective)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        total_value = 0\n        total_mass = 0\n        total_volume = 0\n        total_integrity = 0\n        total_cooling = 0\n        \n        selected = []\n        \n        for i in range(N):\n            selected_val = solver.Value(x[i])\n            selected.append(selected_val)\n            if selected_val == 1:\n                total_value += value[i]\n                total_mass += mass[i]\n                total_volume += volume[i]\n                total_integrity += integrity[i]\n                total_cooling += cooling[i]\n        \n        print(json.dumps({\n            \"selected\": selected,\n            \"total_quantum_value\": total_value,\n            \"total_mass\": total_mass,\n            \"total_volume\": total_volume,\n            \"total_integrity\": total_integrity,\n            \"total_cooling_energy\": total_cooling\n        }))\n            \n    else:\n        print(json.dumps({\n            \"selected\": [],\n            \"total_quantum_value\": 0,\n            \"total_mass\": 0,\n            \"total_volume\": 0,\n            \"total_integrity\": 0,\n            \"total_cooling_energy\": 0\n        }))\n\nif __name__ == \"__main__\":\n    solve_quantum_logistics()"
+}

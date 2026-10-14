@@ -1,0 +1,27 @@
+{
+    "problem_id": "minimum_vertex_cover_002",
+    "problem_type": "Minimum Vertex Cover Problem",
+    "difficulty": "medium",
+    "problem_description": "A large shopping mall needs to install security cameras at strategic locations to monitor all corridors and pathways connecting 25 key areas throughout the building. The security team wants to minimize the number of cameras while ensuring that every corridor between areas is monitored by at least one camera. The mall has corridors linking these areas as follows: area 0 links to areas 1, 2, and 3; area 1 links to areas 4 and 5; area 2 links to areas 6 and 7; area 3 links to areas 8 and 9; area 4 links to areas 10 and 11; area 5 links to areas 12 and 13; area 6 links to areas 14 and 15; area 7 links to areas 16 and 17; area 8 links to areas 18 and 19; area 9 links to areas 20 and 21; area 10 links to area 22; area 11 links to area 23; area 12 links to area 24; area 13 links to area 14; area 15 links to area 16; area 17 links to area 18; area 19 links to area 20; area 21 links to area 22; area 23 links to area 24; area 10 also links to area 12; area 11 also links to area 13; area 14 also links to area 15; area 16 also links to area 17; area 18 also links to area 19; area 20 also links to area 21; area 22 also links to area 23; and area 24 links back to area 0.\n\nPrint the following fields: - selected_areas: areas where cameras should be installed. - num_cameras: total number of cameras.",
+    "reference_solution": {
+        "selected_areas": [
+            0,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            11,
+            12,
+            14,
+            16,
+            18,
+            20,
+            22,
+            23
+        ],
+        "num_cameras": 15
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_security_camera_placement():\n    areas = list(range(25))\n    \n    corridors = [\n        (0, 1), (0, 2), (0, 3),\n        (1, 4), (1, 5),\n        (2, 6), (2, 7),\n        (3, 8), (3, 9),\n        (4, 10), (4, 11),\n        (5, 12), (5, 13),\n        (6, 14), (6, 15),\n        (7, 16), (7, 17),\n        (8, 18), (8, 19),\n        (9, 20), (9, 21),\n        (10, 22),\n        (11, 23),\n        (12, 24),\n        (13, 14),\n        (15, 16),\n        (17, 18),\n        (19, 20),\n        (21, 22),\n        (23, 24),\n        (10, 12),\n        (11, 13),\n        (14, 15),\n        (16, 17),\n        (18, 19),\n        (20, 21),\n        (22, 23),\n        (24, 0)\n    ]\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    if not solver:\n        print(json.dumps({\n            \"selected_areas\": [],\n            \"num_cameras\": 0\n        }))\n        return\n    \n    x = {}\n    for i in areas:\n        x[i] = solver.BoolVar(f\"x[{i}]\")\n    \n    for u, v in corridors:\n        solver.Add(x[u] + x[v] >= 1)\n    \n    objective = solver.Sum(x[i] for i in areas)\n    solver.Minimize(objective)\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:\n        selected_areas = [i for i in areas if x[i].solution_value() > 0.5]\n        num_cameras = len(selected_areas)\n    else:\n        selected_areas = []\n        num_cameras = 0\n        \n    print(json.dumps({\n        \"selected_areas\": selected_areas,\n        \"num_cameras\": num_cameras\n    }))\n\nif __name__ == \"__main__\":\n    solve_security_camera_placement()"
+}

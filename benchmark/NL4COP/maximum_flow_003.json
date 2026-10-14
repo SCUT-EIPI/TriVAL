@@ -1,0 +1,107 @@
+{
+    "problem_id": "maximum_flow_003",
+    "problem_type": "Maximum Flow Problem",
+    "difficulty": "hard",
+    "problem_description": "A global shipping company manages a complex cargo distribution network with 32 ports arranged in a multi-layered structure, connected by 50 directional shipping routes with different cargo capacities. The logistics director needs to determine the maximum cargo throughput from the main hub port to the final destination port through this intricate network. The network architecture consists of five distinct layers: the hub layer connects the main port to primary distribution centers, the expansion layer provides regional routing, the consolidation layer gathers cargo from multiple sources, the distribution layer directs cargo to final routes, and the terminal layer connects to the destination. The complete network connections and their cargo capacities are organized as follows: From the main hub port: to port 1 with capacity 20 containers per day, to port 2 with capacity 18 containers per day. From port 1: to port 3 with capacity 12, to port 9 with capacity 15. From port 2: to port 4 with capacity 14, to port 10 with capacity 16. From port 3: to port 5 with capacity 10, to port 11 with capacity 13. From port 4: to port 6 with capacity 8, to port 12 with capacity 17. From port 5: to port 7 with capacity 11, to port 13 with capacity 19. From port 6: to port 8 with capacity 9, to port 14 with capacity 12. From port 7: to port 15 with capacity 15. From port 8: to port 16 with capacity 13. From port 9: to port 17 with capacity 14. From port 10: to port 17 with capacity 11. From port 11: to port 18 with capacity 16, to port 20 with capacity 10. From port 12: to port 19 with capacity 12, to port 21 with capacity 15. From port 13: to port 20 with capacity 18, to port 22 with capacity 14. From port 14: to port 21 with capacity 9, to port 23 with capacity 13. From port 15: to port 22 with capacity 17, to port 24 with capacity 12. From port 16: to port 23 with capacity 11, to port 25 with capacity 16. From port 17: to port 26 with capacity 20. From port 18: to port 26 with capacity 15, to port 27 with capacity 12. From port 19: to port 26 with capacity 13, to port 28 with capacity 14. From port 20: to port 27 with capacity 16, to port 29 with capacity 11. From port 21: to port 28 with capacity 18, to port 30 with capacity 10. From port 22: to port 29 with capacity 15. From port 23: to port 30 with capacity 12. From port 24: to port 29 with capacity 14. From port 25: to port 30 with capacity 17. From port 26: to port 31 with capacity 25. From port 27: to port 31 with capacity 22. From port 28: to port 31 with capacity 20. From port 29: to port 31 with capacity 18. From port 30: to port 31 with capacity 16. Each shipping route can only transport cargo in the specified direction and cannot exceed its maximum capacity. Cargo flow must be conserved at each intermediate port, meaning the total incoming cargo must equal the total outgoing cargo. The director wants to find the optimal routing strategy that maximizes the total cargo transportation from the hub port to the destination port while respecting all capacity constraints and flow conservation requirements.\n\nPrint the following fields: - max_flow: maximum cargo flow from hub to destination. - cargo_distribution: cargo amount for each shipping route.",
+    "reference_solution": {
+        "max_flow": 38,
+        "cargo_distribution": [
+            [
+                0,
+                1,
+                20
+            ],
+            [
+                0,
+                2,
+                18
+            ],
+            [
+                1,
+                3,
+                6
+            ],
+            [
+                1,
+                9,
+                14
+            ],
+            [
+                2,
+                4,
+                12
+            ],
+            [
+                2,
+                10,
+                6
+            ],
+            [
+                3,
+                11,
+                6
+            ],
+            [
+                4,
+                12,
+                12
+            ],
+            [
+                9,
+                17,
+                14
+            ],
+            [
+                10,
+                17,
+                6
+            ],
+            [
+                11,
+                18,
+                6
+            ],
+            [
+                12,
+                21,
+                12
+            ],
+            [
+                17,
+                26,
+                20
+            ],
+            [
+                18,
+                26,
+                5
+            ],
+            [
+                18,
+                27,
+                1
+            ],
+            [
+                21,
+                28,
+                12
+            ],
+            [
+                26,
+                31,
+                25
+            ],
+            [
+                27,
+                31,
+                1
+            ],
+            [
+                28,
+                31,
+                12
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_max_flow():\n    solver = pywraplp.Solver.CreateSolver(\"GLOP\")\n    INF = solver.infinity()\n    \n    num_ports = 32\n    \n    arcs = [\n        (0, 1, 20),\n        (0, 2, 18),\n        \n        (1, 3, 12),\n        (1, 9, 15),\n        (2, 4, 14),\n        (2, 10, 16),\n        \n        (3, 5, 10),\n        (3, 11, 13),\n        (4, 6, 8),\n        (4, 12, 17),\n        \n        (5, 7, 11),\n        (5, 13, 19),\n        (6, 8, 9),\n        (6, 14, 12),\n        \n        (7, 15, 15),\n        (8, 16, 13),\n        (9, 17, 14),\n        (10, 17, 11),\n        (11, 18, 16),\n        (11, 20, 10),\n        (12, 19, 12),\n        (12, 21, 15),\n        (13, 20, 18),\n        (13, 22, 14),\n        (14, 21, 9),\n        (14, 23, 13),\n        \n        (15, 22, 17),\n        (15, 24, 12),\n        (16, 23, 11),\n        (16, 25, 16),\n        (17, 26, 20),\n        (18, 26, 15),\n        (18, 27, 12),\n        (19, 26, 13),\n        (19, 28, 14),\n        (20, 27, 16),\n        (20, 29, 11),\n        (21, 28, 18),\n        (21, 30, 10),\n        (22, 29, 15),\n        (23, 30, 12),\n        (24, 29, 14),\n        (25, 30, 17),\n        \n        (26, 31, 25),\n        (27, 31, 22),\n        (28, 31, 20),\n        (29, 31, 18),\n        (30, 31, 16),\n    ]\n    \n    flow_vars = {}\n    for i, j, capacity in arcs:\n        var_name = f\"x_{i}_{j}\"\n        flow_vars[(i, j)] = solver.NumVar(0, capacity, var_name)\n    \n    for port in range(1, 31):\n        incoming_flows = []\n        outgoing_flows = []\n        \n        for (i, j), var in flow_vars.items():\n            if j == port:\n                incoming_flows.append(var)\n            if i == port:\n                outgoing_flows.append(var)\n        \n        if incoming_flows and outgoing_flows:\n            solver.Add(sum(incoming_flows) == sum(outgoing_flows))\n    \n    source_outflow = []\n    for (i, j), var in flow_vars.items():\n        if i == 0:\n            source_outflow.append(var)\n    \n    solver.Maximize(sum(source_outflow))\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        max_flow = int(round(solver.Objective().Value()))\n        cargo_distribution = []\n        for (i, j), var in flow_vars.items():\n            flow_value = var.solution_value()\n            if flow_value > 1e-6:\n                cargo_distribution.append([i, j, int(round(flow_value))])\n        cargo_distribution.sort(key=lambda x: (x[0], x[1]))\n        print(json.dumps({\n            \"max_flow\": max_flow,\n            \"cargo_distribution\": cargo_distribution\n        }))\n    else:\n        print(json.dumps({\n            \"max_flow\": 0,\n            \"cargo_distribution\": []\n        }))\n\nif __name__ == \"__main__\":\n    solve_max_flow()"
+}

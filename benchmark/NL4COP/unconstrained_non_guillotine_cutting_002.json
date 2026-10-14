@@ -1,0 +1,90 @@
+{
+    "problem_id": "unconstrained_non_guillotine_cutting_002",
+    "problem_type": "Unconstrained Non-Guillotine Cutting Problem",
+    "difficulty": "medium",
+    "problem_description": "A specialized industrial manufacturing facility is addressing a complex spatial configuration optimization challenge involving non-sequential component arrangement on a rectangular workspace measuring 30 by 20 centimeters. This non-guillotine cutting methodology enables components to be positioned freely throughout the workspace without adherence to any predetermined cutting trajectory or sequential arrangement protocol. The manufacturing inventory encompasses eight distinct material categories: Category 1 components with length 8 centimeters and width 6 centimeters, valuation of 48 hundred dollars, and maximum allowable quantity of 2 pieces; Category 2 components with length 7 centimeters and width 5 centimeters, valuation of 35 hundred dollars, and maximum allowable quantity of 2 pieces; Category 3 components with length 6 centimeters and width 4 centimeters, valuation of 24 hundred dollars, and maximum allowable quantity of 2 pieces; Category 4 components with length 5 centimeters and width 5 centimeters, valuation of 25 hundred dollars, and maximum allowable quantity of 2 pieces; Category 5 components with length 9 centimeters and width 3 centimeters, valuation of 27 hundred dollars, and maximum allowable quantity of 2 pieces; Category 6 components with length 4 centimeters and width 7 centimeters, valuation of 28 hundred dollars, and maximum allowable quantity of 1 piece; Category 7 components with length 10 centimeters and width 4 centimeters, valuation of 40 hundred dollars, and maximum allowable quantity of 1 piece; Category 8 components with length 3 centimeters and width 8 centimeters, valuation of 24 hundred dollars, and maximum allowable quantity of 1 piece. Each component permits 90-degree rotational adjustment and can be positioned at any coordinate within the workspace boundaries, provided that spatial overlapping is avoided and complete containment within the perimeter is maintained. Manufacturing engineers must determine how to arrange the components to achieve maximum total value, with no constraints on placement order or cutting sequence.\n\nPrint the following fields: - placements: for each piece, list placement with type, x, y, rotation. - total_value: total value of placed pieces.",
+    "reference_solution": {
+        "placements": [
+            [
+                0,
+                20,
+                3,
+                0
+            ],
+            [
+                0,
+                20,
+                9,
+                0
+            ],
+            [
+                1,
+                9,
+                0,
+                0
+            ],
+            [
+                1,
+                4,
+                3,
+                1
+            ],
+            [
+                2,
+                9,
+                5,
+                0
+            ],
+            [
+                2,
+                0,
+                3,
+                1
+            ],
+            [
+                3,
+                13,
+                15,
+                0
+            ],
+            [
+                3,
+                9,
+                9,
+                0
+            ],
+            [
+                4,
+                4,
+                14,
+                0
+            ],
+            [
+                4,
+                0,
+                0,
+                0
+            ],
+            [
+                5,
+                0,
+                10,
+                0
+            ],
+            [
+                6,
+                16,
+                0,
+                1
+            ],
+            [
+                7,
+                0,
+                17,
+                1
+            ]
+        ],
+        "total_value": 410
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_packing_problem():\n    W = 30\n    H = 20\n    \n    T = 8\n    L = [8, 7, 6, 5, 9, 4, 10, 3]\n    W_i = [6, 5, 4, 5, 3, 7, 4, 8]\n    V = [48, 35, 24, 25, 27, 28, 40, 24]\n    Q = [2, 2, 2, 2, 2, 1, 1, 1]\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    INF = solver.infinity()\n    \n    N = Q.copy()\n    total_instances = sum(N)\n    \n    x = {}\n    y = {}\n    r = {}\n    a = {}\n    l = {}\n    h = {}\n    \n    M = max(max(L), max(W_i)) + max(W, H)\n    \n    for i in range(T):\n        for k in range(N[i]):\n            x[(i, k)] = solver.NumVar(0, W, f\"x_{i}_{k}\")\n            y[(i, k)] = solver.NumVar(0, H, f\"y_{i}_{k}\")\n            \n            r[(i, k)] = solver.BoolVar(f\"r_{i}_{k}\")\n            \n            a[(i, k)] = solver.BoolVar(f\"a_{i}_{k}\")\n            \n            l[(i, k)] = solver.NumVar(0, M, f\"l_{i}_{k}\")\n            h[(i, k)] = solver.NumVar(0, M, f\"h_{i}_{k}\")\n    \n    for i in range(T):\n        for k in range(N[i]):\n            solver.Add(l[(i, k)] == (1 - r[(i, k)]) * L[i] + r[(i, k)] * W_i[i])\n            \n            solver.Add(h[(i, k)] == (1 - r[(i, k)]) * W_i[i] + r[(i, k)] * L[i])\n    \n    for i in range(T):\n        for k in range(N[i]):\n            solver.Add(x[(i, k)] + l[(i, k)] <= W + M * (1 - a[(i, k)]))\n            \n            solver.Add(y[(i, k)] + h[(i, k)] <= H + M * (1 - a[(i, k)]))\n            \n            solver.Add(x[(i, k)] <= M * a[(i, k)])\n            solver.Add(y[(i, k)] <= M * a[(i, k)])\n    \n    instances = []\n    for i in range(T):\n        for k in range(N[i]):\n            instances.append((i, k))\n    \n    for idx1 in range(len(instances)):\n        for idx2 in range(idx1 + 1, len(instances)):\n            i1, k1 = instances[idx1]\n            i2, k2 = instances[idx2]\n            \n            b1 = solver.BoolVar(f\"b1_{i1}_{k1}_{i2}_{k2}\")\n            b2 = solver.BoolVar(f\"b2_{i1}_{k1}_{i2}_{k2}\")\n            b3 = solver.BoolVar(f\"b3_{i1}_{k1}_{i2}_{k2}\")\n            b4 = solver.BoolVar(f\"b4_{i1}_{k1}_{i2}_{k2}\")\n            \n            solver.Add(x[(i1, k1)] + l[(i1, k1)] <= x[(i2, k2)] + M * (1 - b1))\n            \n            solver.Add(x[(i2, k2)] + l[(i2, k2)] <= x[(i1, k1)] + M * (1 - b2))\n            \n            solver.Add(y[(i1, k1)] + h[(i1, k1)] <= y[(i2, k2)] + M * (1 - b3))\n            \n            solver.Add(y[(i2, k2)] + h[(i2, k2)] <= y[(i1, k1)] + M * (1 - b4))\n            \n            solver.Add(b1 + b2 + b3 + b4 >= a[(i1, k1)] + a[(i2, k2)] - 1)\n    \n    for i in range(T):\n        solver.Add(sum(a[(i, k)] for k in range(N[i])) <= Q[i])\n    \n    objective = solver.Objective()\n    for i in range(T):\n        for k in range(N[i]):\n            objective.SetCoefficient(a[(i, k)], V[i])\n    objective.SetMaximization()\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        placements = []\n        total_value = 0\n        \n        for i in range(T):\n            for k in range(N[i]):\n                if a[(i, k)].solution_value() > 0.5:\n                    x_val = x[(i, k)].solution_value()\n                    y_val = y[(i, k)].solution_value()\n                    r_val = r[(i, k)].solution_value()\n                    rotation_flag = 1 if r_val > 0.5 else 0\n                    \n                    placements.append([\n                        i,\n                        round(x_val),\n                        round(y_val),\n                        rotation_flag\n                    ])\n                    \n                    total_value += V[i]\n        \n        print(json.dumps({\"placements\": placements, \"total_value\": total_value}))\n    else:\n        print(json.dumps({\"placements\": [], \"total_value\": 0}))\n\nif __name__ == \"__main__\":\n    solve_packing_problem()"
+}

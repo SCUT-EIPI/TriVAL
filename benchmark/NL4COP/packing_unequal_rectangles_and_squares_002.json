@@ -1,0 +1,107 @@
+{
+    "problem_id": "packing_unequal_rectangles_and_squares_002",
+    "problem_type": "Packing unequal rectangles and squares",
+    "difficulty": "medium",
+    "problem_description": "Global Freight Solutions operates a major cargo consolidation facility where they need to optimize the loading of nineteen different shipping containers onto a circular loading platform with a radius of 7.19 meters, centered at coordinates (7.19, 7.19) in their warehouse layout system. The facility handles an extremely diverse inventory of container types with dramatic aspect ratio variations: the inventory includes a 1.0 by 1.0 meter square container, followed by ultra-elongated containers measuring 2.5 by 0.4 meters, 2.3 by 0.5 meters, then ultra-tall narrow containers sized 0.4 by 2.4 meters and 0.5 by 2.2 meters, an extremely elongated 2.8 by 0.3 meter container, a very tall 0.3 by 2.6 meter container, moderately elongated containers including 2.1 by 0.6 meters and 1.9 by 0.7 meters, a tall 0.6 by 2.0 meter container, a medium 1.5 by 1.5 meter square container, an extremely long 3.0 by 0.2 meter container, an ultra-tall 0.2 by 2.8 meter container, elongated containers measuring 2.4 by 0.4 meters and 2.6 by 0.3 meters, a tall 0.3 by 2.5 meter container, a 1.3 by 1.3 meter square container, a 2.2 by 0.5 meter elongated container, and finally a 0.5 by 2.1 meter tall narrow container. The loading supervisor must determine the optimal placement strategy to maximize the number of containers that can be successfully accommodated on the platform. Each container can be placed either in its standard orientation or rotated by ninety degrees to better fit the available space, which is absolutely critical for the extreme aspect ratio containers to achieve efficient packing. The loading operations team must ensure that every selected container fits completely within the circular boundary of the loading platform, with no part extending beyond the platform's edge. Additionally, containers cannot overlap with each other - their footprints must remain separate to prevent damage during loading and unloading operations.\n\nPrint the following fields: - placements: for each container, list placement with x, y, rotation angle. - total_count: total number of placed containers.",
+    "reference_solution": {
+        "placements": [
+            [
+                10.56,
+                9.7,
+                0
+            ],
+            [
+                12.56,
+                9.74,
+                90
+            ],
+            [
+                12.9,
+                8.24,
+                0
+            ],
+            [
+                6.99,
+                1.3,
+                0
+            ],
+            [
+                10.69,
+                7.86,
+                0
+            ],
+            [
+                9.34,
+                9.9,
+                90
+            ],
+            [
+                12.91,
+                9.79,
+                0
+            ],
+            [
+                6.49,
+                2.79,
+                90
+            ],
+            [
+                9.49,
+                7.64,
+                0
+            ],
+            [
+                6.72,
+                9.49,
+                0
+            ],
+            [
+                5.67,
+                6.39,
+                0
+            ],
+            [
+                8.59,
+                10.0,
+                90
+            ],
+            [
+                9.66,
+                10.3,
+                0
+            ],
+            [
+                1.33,
+                8.31,
+                0
+            ],
+            [
+                11.21,
+                11.51,
+                90
+            ],
+            [
+                5.94,
+                8.34,
+                90
+            ],
+            [
+                7.84,
+                9.56,
+                0
+            ],
+            [
+                4.55,
+                1.3,
+                0
+            ],
+            [
+                0.99,
+                6.05,
+                0
+            ]
+        ],
+        "total_count": 19
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef add_point_in_circle_constraint(model, x_var, y_var, cx_scaled, cy_scaled, R_sq_scaled, name_prefix, enforce_var=None):\n    \"\"\"Add constraint that point (x_var, y_var) is within circle centered at (cx_scaled, cy_scaled)\"\"\"\n    max_dist = int(math.sqrt((2*cx_scaled)**2 + (2*cy_scaled)**2))\n    dx = model.NewIntVar(-max_dist, max_dist, f\"{name_prefix}_dx\")\n    dy = model.NewIntVar(-max_dist, max_dist, f\"{name_prefix}_dy\")\n    \n    model.Add(dx == x_var - cx_scaled)\n    model.Add(dy == y_var - cy_scaled)\n    \n    dx_sq = model.NewIntVar(0, R_sq_scaled, f\"{name_prefix}_dx_sq\")\n    dy_sq = model.NewIntVar(0, R_sq_scaled, f\"{name_prefix}_dy_sq\")\n    \n    model.AddMultiplicationEquality(dx_sq, [dx, dx])\n    model.AddMultiplicationEquality(dy_sq, [dy, dy])\n    \n    dist_sq = model.NewIntVar(0, R_sq_scaled, f\"{name_prefix}_dist_sq\")\n    model.Add(dist_sq == dx_sq + dy_sq)\n    \n    if enforce_var is not None:\n        model.Add(dist_sq <= R_sq_scaled).OnlyEnforceIf(enforce_var)\n    else:\n        model.Add(dist_sq <= R_sq_scaled)\n\ndef main():\n    N = 19\n    \n    w = [1.0, 2.5, 2.3, 0.4, 0.5, 2.8, 0.3, 2.1, 1.9, 0.6, 1.5, 3.0, 0.2, 2.4, 2.6, 0.3, 1.3, 2.2, 0.5]\n    h = [1.0, 0.4, 0.5, 2.4, 2.2, 0.3, 2.6, 0.6, 0.7, 2.0, 1.5, 0.2, 2.8, 0.4, 0.3, 2.5, 1.3, 0.5, 2.1]\n    \n    R = 7.19\n    cx = 7.19\n    cy = 7.19\n    R_sq = R * R\n    \n    total_possible_area = sum(w[i] * h[i] for i in range(N))\n    platform_area = math.pi * R * R\n    \n    model = cp_model.CpModel()\n    \n    place = [model.NewBoolVar(f\"place_{i}\") for i in range(N)]\n    x = [model.NewIntVar(0, int(2 * cx * 100), f\"x_{i}\") for i in range(N)]\n    y = [model.NewIntVar(0, int(2 * cy * 100), f\"y_{i}\") for i in range(N)]\n    rot = [model.NewBoolVar(f\"rot_{i}\") for i in range(N)]\n    \n    W_eff = []\n    H_eff = []\n    for i in range(N):\n        w_scaled = int(w[i] * 100)\n        h_scaled = int(h[i] * 100)\n        \n        w_eff = model.NewIntVar(0, max(w_scaled, h_scaled), f\"w_eff_{i}\")\n        h_eff = model.NewIntVar(0, max(w_scaled, h_scaled), f\"h_eff_{i}\")\n        \n        model.Add(w_eff == w_scaled).OnlyEnforceIf(rot[i].Not())\n        model.Add(w_eff == h_scaled).OnlyEnforceIf(rot[i])\n        model.Add(h_eff == h_scaled).OnlyEnforceIf(rot[i].Not())\n        model.Add(h_eff == w_scaled).OnlyEnforceIf(rot[i])\n        \n        W_eff.append(w_eff)\n        H_eff.append(h_eff)\n    \n    cx_scaled = int(cx * 100)\n    cy_scaled = int(cy * 100)\n    R_sq_scaled = int(R_sq * 10000)\n    \n    for i in range(N):\n        left_x = model.NewIntVar(0, int(2 * cx * 100), f\"left_x_{i}\")\n        right_x = model.NewIntVar(0, int(2 * cx * 100), f\"right_x_{i}\")\n        bottom_y = model.NewIntVar(0, int(2 * cy * 100), f\"bottom_y_{i}\")\n        top_y = model.NewIntVar(0, int(2 * cy * 100), f\"top_y_{i}\")\n        \n        x_times_2 = model.NewIntVar(0, int(4 * cx * 100), f\"x_2_{i}\")\n        y_times_2 = model.NewIntVar(0, int(4 * cy * 100), f\"y_2_{i}\")\n        model.Add(x_times_2 == 2 * x[i])\n        model.Add(y_times_2 == 2 * y[i])\n        \n        left_x_times_2 = model.NewIntVar(0, int(4 * cx * 100), f\"left_x_2_{i}\")\n        right_x_times_2 = model.NewIntVar(0, int(4 * cx * 100), f\"right_x_2_{i}\")\n        bottom_y_times_2 = model.NewIntVar(0, int(4 * cy * 100), f\"bottom_y_2_{i}\")\n        top_y_times_2 = model.NewIntVar(0, int(4 * cy * 100), f\"top_y_2_{i}\")\n        \n        model.Add(left_x_times_2 == x_times_2 - W_eff[i]).OnlyEnforceIf(place[i])\n        model.Add(right_x_times_2 == x_times_2 + W_eff[i]).OnlyEnforceIf(place[i])\n        model.Add(bottom_y_times_2 == y_times_2 - H_eff[i]).OnlyEnforceIf(place[i])\n        model.Add(top_y_times_2 == y_times_2 + H_eff[i]).OnlyEnforceIf(place[i])\n        \n        model.Add(left_x_times_2 == 2 * cx_scaled).OnlyEnforceIf(place[i].Not())\n        model.Add(right_x_times_2 == 2 * cx_scaled).OnlyEnforceIf(place[i].Not())\n        model.Add(bottom_y_times_2 == 2 * cy_scaled).OnlyEnforceIf(place[i].Not())\n        model.Add(top_y_times_2 == 2 * cy_scaled).OnlyEnforceIf(place[i].Not())\n        \n        model.AddDivisionEquality(left_x, left_x_times_2, 2)\n        model.AddDivisionEquality(right_x, right_x_times_2, 2)\n        model.AddDivisionEquality(bottom_y, bottom_y_times_2, 2)\n        model.AddDivisionEquality(top_y, top_y_times_2, 2)\n        \n        add_point_in_circle_constraint(model, left_x, bottom_y, cx_scaled, cy_scaled, R_sq_scaled, f\"corner_bl_{i}\", place[i])\n        add_point_in_circle_constraint(model, right_x, bottom_y, cx_scaled, cy_scaled, R_sq_scaled, f\"corner_br_{i}\", place[i])\n        add_point_in_circle_constraint(model, left_x, top_y, cx_scaled, cy_scaled, R_sq_scaled, f\"corner_tl_{i}\", place[i])\n        add_point_in_circle_constraint(model, right_x, top_y, cx_scaled, cy_scaled, R_sq_scaled, f\"corner_tr_{i}\", place[i])\n        \n        model.Add(x[i] == 0).OnlyEnforceIf(place[i].Not())\n        model.Add(y[i] == 0).OnlyEnforceIf(place[i].Not())\n        model.Add(rot[i] == 0).OnlyEnforceIf(place[i].Not())\n    \n    for i in range(N):\n        for j in range(i + 1, N):\n            \n            dx = model.NewIntVar(-int(2 * cx * 100), int(2 * cx * 100), f\"dx_{i}_{j}\")\n            dy = model.NewIntVar(-int(2 * cy * 100), int(2 * cy * 100), f\"dy_{i}_{j}\")\n            \n            model.Add(dx == x[i] - x[j])\n            model.Add(dy == y[i] - y[j])\n            \n            abs_dx = model.NewIntVar(0, int(2 * cx * 100), f\"abs_dx_{i}_{j}\")\n            abs_dy = model.NewIntVar(0, int(2 * cy * 100), f\"abs_dy_{i}_{j}\")\n            model.AddAbsEquality(abs_dx, dx)\n            model.AddAbsEquality(abs_dy, dy)\n            \n            sum_W = model.NewIntVar(0, int(2 * R * 100), f\"sum_W_{i}_{j}\")\n            model.Add(sum_W == W_eff[i] + W_eff[j])\n            \n            sum_H = model.NewIntVar(0, int(2 * R * 100), f\"sum_H_{i}_{j}\")\n            model.Add(sum_H == H_eff[i] + H_eff[j])\n            \n            sep_x = model.NewBoolVar(f\"sep_x_{i}_{j}\")\n            sep_y = model.NewBoolVar(f\"sep_y_{i}_{j}\")\n            \n            model.Add(2 * abs_dx >= sum_W).OnlyEnforceIf(sep_x)\n            model.Add(2 * abs_dx < sum_W).OnlyEnforceIf(sep_x.Not())\n            \n            model.Add(2 * abs_dy >= sum_H).OnlyEnforceIf(sep_y)\n            model.Add(2 * abs_dy < sum_H).OnlyEnforceIf(sep_y.Not())\n            \n            both_placed = model.NewBoolVar(f\"both_placed_{i}_{j}\")\n            model.AddBoolAnd([place[i], place[j]]).OnlyEnforceIf(both_placed)\n            model.AddBoolOr([place[i].Not(), place[j].Not()]).OnlyEnforceIf(both_placed.Not())\n            \n            model.AddBoolOr([sep_x, sep_y, both_placed.Not()])\n    \n    model.Maximize(sum(place))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 180.0\n    solver.parameters.num_search_workers = 8\n    solver.parameters.log_search_progress = False\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        placements = []\n        for i in range(N):\n            if solver.Value(place[i]) == 1:\n                x_val = solver.Value(x[i]) / 100.0\n                y_val = solver.Value(y[i]) / 100.0\n                angle = 90 if solver.Value(rot[i]) == 1 else 0\n                placements.append([x_val, y_val, angle])\n        total_count = len(placements)\n        print(json.dumps({\"placements\": placements, \"total_count\": total_count}))\n    else:\n        print(json.dumps({\"placements\": [], \"total_count\": 0}))\n\nif __name__ == \"__main__\":\n    main()"
+}

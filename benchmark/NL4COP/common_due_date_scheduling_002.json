@@ -1,0 +1,22 @@
+{
+    "problem_id": "common_due_date_scheduling_002",
+    "problem_type": "Single Machine Common Due Date Scheduling Problem",
+    "difficulty": "medium",
+    "problem_description": "A small custom manufacturing workshop needs to plan the production sequence for a batch of 10 unique client orders on its single production line. Each order has a specific processing time and associated penalties if it's completed either too early or too late relative to a target completion date. The workshop aims to minimize the total penalty cost. The target date is calculated as 60% of the total time required to process all orders. For each order, if it finishes before this target date, an earliness penalty is incurred; if it finishes after, a tardiness penalty applies. The list below details the 10 orders with their processing times (in hours) and penalty coefficients (Cost/hour): 1. Order 1: Process 20h, Early Penalty $4/h, Late Penalty $5/h; 2. Order 2: Process 6h, Early Penalty $1/h, Late Penalty $15/h; 3. Order 3: Process 13h, Early Penalty $5/h, Late Penalty $13/h; 4. Order 4: Process 13h, Early Penalty $2/h, Late Penalty $13/h; 5. Order 5: Process 12h, Early Penalty $7/h, Late Penalty $6/h; 6. Order 6: Process 12h, Early Penalty $9/h, Late Penalty $8/h; 7. Order 7: Process 12h, Early Penalty $5/h, Late Penalty $15/h; 8. Order 8: Process 3h, Early Penalty $6/h, Late Penalty $1/h; 9. Order 9: Process 12h, Early Penalty $6/h, Late Penalty $8/h; 10. Order 10: Process 13h, Early Penalty $10/h, Late Penalty $1/h. The overall goal is to determine the optimal sequence to process these 10 orders to minimize the total penalty cost, considering the dynamically calculated target completion date.\n\nPrint the following fields: - order_sequence: optimal production order for orders. - total_cost: total penalty cost for the schedule.",
+    "reference_solution": {
+        "order_sequence": [
+            4,
+            2,
+            1,
+            3,
+            7,
+            6,
+            9,
+            5,
+            8,
+            10
+        ],
+        "total_cost": 862.8
+    },
+    "solver_code": "import json\nfrom ortools.sat.python import cp_model\n\ndef solve():\n    model = cp_model.CpModel()\n    \n    N = 10\n    p = [20, 6, 13, 13, 12, 12, 12, 3, 12, 13]\n    alpha = [4, 1, 5, 2, 7, 9, 5, 6, 6, 10]\n    beta = [5, 15, 13, 13, 6, 8, 15, 1, 8, 1]\n    \n    T = 0.6 * sum(p)\n    p_10 = [int(x * 10) for x in p]\n    T_10 = int(round(T * 10))\n    \n    start_vars = []\n    end_vars = []\n    interval_vars = []\n    for i in range(N):\n        start = model.NewIntVar(0, sum(p_10), f'start_{i}')\n        end = model.NewIntVar(0, sum(p_10), f'end_{i}')\n        interval = model.NewIntervalVar(start, p_10[i], end, f'interval_{i}')\n        start_vars.append(start)\n        end_vars.append(end)\n        interval_vars.append(interval)\n        \n    model.AddNoOverlap(interval_vars)\n    min_start = model.NewIntVar(0, sum(p_10), 'min_start')\n    model.AddMinEquality(min_start, start_vars)\n    model.Add(min_start == 0)\n    \n    max_end = model.NewIntVar(0, sum(p_10), 'max_end')\n    model.AddMaxEquality(max_end, end_vars)\n    model.Add(max_end == sum(p_10))\n    \n    costs = []\n    total_cost_10 = model.NewIntVar(0, 10000000, 'total_cost_10')\n    for i in range(N):\n        e = model.NewIntVar(0, sum(p_10), f'early_{i}')\n        model.AddMaxEquality(e, [0, T_10 - end_vars[i]])\n        t = model.NewIntVar(0, sum(p_10), f'tardy_{i}')\n        model.AddMaxEquality(t, [0, end_vars[i] - T_10])\n        cost_i = model.NewIntVar(0, 10000000, f'cost_{i}')\n        model.Add(cost_i == e * alpha[i] + t * beta[i])\n        costs.append(cost_i)\n        \n    model.Add(total_cost_10 == sum(costs))\n    model.Minimize(total_cost_10)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.num_search_workers = 8\n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        ans_cost = solver.ObjectiveValue() / 10.0\n        order_starts = [(i, solver.Value(start_vars[i])) for i in range(N)]\n        order_starts.sort(key=lambda x: x[1])\n        seq = [x[0] + 1 for x in order_starts]\n        out = {\n            \"order_sequence\": seq,\n            \"total_cost\": ans_cost\n        }\n        print(json.dumps(out))\n\nsolve()\n"
+}

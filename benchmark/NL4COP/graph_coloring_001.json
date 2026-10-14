@@ -1,0 +1,22 @@
+{
+    "problem_id": "graph_coloring_001",
+    "problem_type": "Graph Coloring Problem",
+    "difficulty": "simple",
+    "problem_description": "Within the strategic operational framework of the Global Wireless Infrastructure Consortium, a sophisticated frequency resource optimization paradigm is being deployed for a metropolitan cellular communications infrastructure comprising ten strategically positioned towers distributed throughout an urban geographical topology. The consortium's advanced network management systems have identified intricate conflict relationship patterns that preclude frequency co-utilization among geographically proximate tower infrastructure elements. The complex spatial constraint matrix reveals that towers exhibiting mutual conflict relationships must be allocated distinct frequency assignments to preserve signal integrity and maintain optimal network performance characteristics. The comprehensive network topology analysis has systematically determined that the following tower pair configurations experience conflict interactions: towers 1 and 2 demonstrate mutual incompatibility, towers 2 and 3 exhibit conflict relationships, towers 1 and 3 share mutual constraints, towers 4 and 5 experience interference patterns, towers 5 and 6 demonstrate conflict interactions, towers 6 and 7 exhibit mutual incompatibility, towers 4 and 7 experience reciprocal conflicts, towers 1 and 4 demonstrate cross-cluster interference, towers 3 and 6 experience conflict relationships, tower 8 exhibits conflict patterns with towers 1, 5, and 9, tower 9 demonstrates incompatibility with towers 2, 7, and 10, and tower 10 experiences conflict interactions with towers 3, 6, and 4. Each tower infrastructure component must be allocated exactly one frequency assignment, represented by a positive integer designation corresponding to a specific spectral band allocation. The consortium's optimization methodology seeks to determine the minimal cardinality set of distinct frequency assignments that satisfies all conflict relationship constraints while maximizing spectral utilization efficiency and optimizing network resource deployment parameters.\n\nPrint the following fields: - tower_frequencies: frequency assignment for each tower. - num_frequencies: total number of different frequencies used.",
+    "reference_solution": {
+        "tower_frequencies": [
+            1,
+            3,
+            2,
+            2,
+            1,
+            3,
+            1,
+            3,
+            2,
+            1
+        ],
+        "num_frequencies": 3
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    T = list(range(1, 11))\n    C = [\n        (1, 2), (2, 3), (1, 3), (4, 5), (5, 6), (6, 7), (4, 7), (1, 4), (3, 6),\n        (8, 1), (8, 5), (8, 9), (9, 2), (9, 7), (9, 10), (10, 3), (10, 6), (10, 4)\n    ]\n    \n    K = list(range(1, len(T) + 1))\n    \n    model = cp_model.CpModel()\n    \n    x = {}\n    for i in T:\n        for k in K:\n            x[(i, k)] = model.NewBoolVar(f\"x_{i}_{k}\")\n    \n    y = {}\n    for k in K:\n        y[k] = model.NewBoolVar(f\"y_{k}\")\n    \n    for i in T:\n        model.Add(sum(x[(i, k)] for k in K) == 1)\n    \n    for (i, j) in C:\n        for k in K:\n            model.Add(x[(i, k)] + x[(j, k)] <= 1)\n    \n    for k in K:\n        model.Add(y[k] <= sum(x[(i, k)] for i in T))\n        \n        model.Add(sum(x[(i, k)] for i in T) <= len(T) * y[k])\n    \n    model.Minimize(sum(y[k] for k in K))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 0\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        tower_frequencies = {}\n        for i in T:\n            for k in K:\n                if solver.Value(x[(i, k)]) == 1:\n                    tower_frequencies[i] = k\n                    break\n        \n        num_frequencies = sum(solver.Value(y[k]) for k in K)\n        \n        tower_frequencies_list = [tower_frequencies[i] for i in range(1, 11)]\n        \n        print(json.dumps({\n            \"tower_frequencies\": tower_frequencies_list,\n            \"num_frequencies\": num_frequencies\n        }))\n        \n    else:\n        print(f\"No solution found. Solver status: {solver.StatusName(status)}\")\n\nif __name__ == \"__main__\":\n    main()"
+}

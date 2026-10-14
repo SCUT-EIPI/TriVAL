@@ -1,0 +1,51 @@
+{
+    "problem_id": "bin_packing_002",
+    "problem_type": "Bin Packing Problem",
+    "difficulty": "medium",
+    "problem_description": "A logistics company needs to pack a set of parcels into delivery trucks for an upcoming shipment. Each parcel has a specific volume, and all trucks have the same cargo capacity. To minimize fuel costs and the number of trips, the company wants to use as few trucks as possible while ensuring that the total volume of parcels in each truck does not exceed its capacity.\n\nThe company has prepared the following 25 parcels for loading:\n1. Parcel A: 30 cubic units\n2. Parcel B: 25 cubic units\n3. Parcel C: 35 cubic units\n4. Parcel D: 20 cubic units\n5. Parcel E: 40 cubic units\n6. Parcel F: 15 cubic units\n7. Parcel G: 45 cubic units\n8. Parcel H: 10 cubic units\n9. Parcel I: 50 cubic units\n10. Parcel J: 5 cubic units\n11. Parcel K: 30 cubic units\n12. Parcel L: 25 cubic units\n13. Parcel M: 35 cubic units\n14. Parcel N: 20 cubic units\n15. Parcel O: 40 cubic units\n16. Parcel P: 15 cubic units\n17. Parcel Q: 45 cubic units\n18. Parcel R: 10 cubic units\n19. Parcel S: 50 cubic units\n20. Parcel T: 5 cubic units\n21. Parcel U: 20 cubic units\n22. Parcel V: 15 cubic units\n23. Parcel W: 30 cubic units\n24. Parcel X: 25 cubic units\n25. Parcel Y: 10 cubic units\n\nEach truck has a cargo capacity of 100 cubic units. The company needs to determine how to assign these 25 parcels to the trucks such that the total number of trucks used is minimized, and no truck exceeds its capacity. Each parcel must be loaded into exactly one truck.\n\nPrint the following fields: - num_trucks: total number of trucks used. - truck_loads: parcel indices assigned to each truck.",
+    "reference_solution": {
+        "num_trucks": 7,
+        "truck_loads": [
+            [
+                1,
+                4,
+                15,
+                25
+            ],
+            [
+                7,
+                8,
+                17
+            ],
+            [
+                3,
+                5,
+                6,
+                18
+            ],
+            [
+                9,
+                20,
+                21,
+                22
+            ],
+            [
+                10,
+                19,
+                24
+            ],
+            [
+                2,
+                12,
+                13
+            ],
+            [
+                11,
+                14,
+                16,
+                23
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    P = list(range(1, 26))\n    volume = {\n        1: 30, 2: 25, 3: 35, 4: 20, 5: 40,\n        6: 15, 7: 45, 8: 10, 9: 50, 10: 5,\n        11: 30, 12: 25, 13: 35, 14: 20, 15: 40,\n        16: 15, 17: 45, 18: 10, 19: 50, 20: 5,\n        21: 20, 22: 15, 23: 30, 24: 25, 25: 10\n    }\n    capacity = 100\n    M = 25\n    \n    model = cp_model.CpModel()\n    \n    x = {}\n    for i in P:\n        for t in range(1, M + 1):\n            x[(i, t)] = model.NewBoolVar(f\"x_{i}_{t}\")\n    \n    y = {}\n    for t in range(1, M + 1):\n        y[t] = model.NewBoolVar(f\"y_{t}\")\n    \n    for i in P:\n        model.Add(sum(x[(i, t)] for t in range(1, M + 1)) == 1)\n    \n    for t in range(1, M + 1):\n        model.Add(sum(volume[i] * x[(i, t)] for i in P) <= capacity)\n    \n    for t in range(1, M + 1):\n        for i in P:\n            model.Add(x[(i, t)] <= y[t])\n    \n    for t in range(1, M):\n        model.Add(y[t] >= y[t + 1])\n    \n    model.Minimize(sum(y[t] for t in range(1, M + 1)))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        num_trucks = sum(solver.Value(y[t]) for t in range(1, M + 1))\n        \n        truck_loads_list = []\n        for t in range(1, M + 1):\n            if solver.Value(y[t]) == 1:\n                parcels_in_truck = []\n                for i in P:\n                    if solver.Value(x[(i, t)]) == 1:\n                        parcels_in_truck.append(i)\n                if parcels_in_truck:\n                    truck_loads_list.append(parcels_in_truck)\n        \n        print(json.dumps({\n            \"num_trucks\": num_trucks,\n            \"truck_loads\": truck_loads_list\n        }))\n    else:\n        print(json.dumps({\n            \"num_trucks\": 0,\n            \"truck_loads\": []\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

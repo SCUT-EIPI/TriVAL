@@ -1,0 +1,62 @@
+{
+    "problem_id": "packing_unequal_rectangles_and_squares_001",
+    "problem_type": "Packing unequal rectangles and squares",
+    "difficulty": "simple",
+    "problem_description": "A prestigious landscape architecture firm has been commissioned by the municipal parks department to design an innovative circular botanical garden spanning 4.18 meters in radius, with its geometric center precisely positioned at coordinate (4.18, 4.18) within the comprehensive site development plan. The project represents a significant urban renewal initiative, requiring the strategic placement of ten distinct garden installations that serve both aesthetic and functional purposes. The client's primary design mandate emphasizes maximizing the quantity of installations that can be successfully accommodated while maintaining optimal spatial relationships and circulation patterns. Each installation's placement is determined by precise centroid coordinate positioning and may incorporate orthogonal orientation adjustments in 90-degree increments to achieve superior spatial integration and visual harmony. The design constraints are rigorous: every positioned installation must remain entirely within the circular boundary, ensuring all perimeter points are contained within or coincident with the garden's perimeter curve, while the spatial footprints of any two installations cannot intersect, overlap, or violate minimum clearance requirements. The comprehensive installation catalog includes the following dimensional specifications: Installation Alpha measures 1.0 by 1.0 meters; Installation Beta extends 1.2 by 0.8 meters; Installation Gamma covers 0.9 by 1.1 meters; Installation Delta spans 1.1 by 1.3 meters; Installation Epsilon occupies 1.4 by 1.2 meters; Installation Zeta encompasses 1.5 by 1.5 meters; Installation Eta provides 1.0 by 1.0 meters; Installation Theta measures 1.6 by 1.6 meters; Installation Iota extends 1.3 by 1.3 meters; and Installation Kappa covers 1.4 by 1.4 meters.\n\nPrint the following fields: - placements: for each installation, list placement with x, y, rotation angle. - total_count: total number of placed installations.",
+    "reference_solution": {
+        "placements": [
+            [
+                3.68,
+                3.93,
+                0
+            ],
+            [
+                4.58,
+                3.5,
+                90
+            ],
+            [
+                4.63,
+                2.345,
+                0
+            ],
+            [
+                4.735,
+                4.75,
+                0
+            ],
+            [
+                2.08,
+                3.58,
+                0
+            ],
+            [
+                3.43,
+                5.53,
+                0
+            ],
+            [
+                3.68,
+                2.93,
+                0
+            ],
+            [
+                5.18,
+                6.58,
+                0
+            ],
+            [
+                6.13,
+                4.83,
+                0
+            ],
+            [
+                5.78,
+                3.4,
+                0
+            ]
+        ],
+        "total_count": 10
+    },
+    "solver_code": "import json\nimport math\nfrom ortools.sat.python import cp_model\n\ndef solve():\n    bm = json.load(open('/home/li/projects/OPT-Agent/benchmark/NL4COP/packing_unequal_rectangles_and_squares_001.json'))\n    data = bm['structured_data']\n\n    radius = data['garden_radius']\n    center = data['garden_center']\n    items = data['installations']\n    n = len(items)\n\n    model = cp_model.CpModel()\n    SCALE = 100\n    R_scaled = int(radius * SCALE)\n    \n    x_min = []\n    y_min = []\n    w_vars = []\n    h_vars = []\n    x_intervals = []\n    y_intervals = []\n    rot = []\n    \n    for i in range(n):\n        l, w = items[i]\n        L_sc = int(math.ceil(l * SCALE))\n        W_sc = int(math.ceil(w * SCALE))\n        \n        r = model.NewBoolVar(f'rot_{i}')\n        rot.append(r)\n        \n        w_var = model.NewIntVar(min(L_sc, W_sc), max(L_sc, W_sc), f'w_{i}')\n        h_var = model.NewIntVar(min(L_sc, W_sc), max(L_sc, W_sc), f'h_{i}')\n        \n        model.Add(w_var == W_sc).OnlyEnforceIf(r)\n        model.Add(h_var == L_sc).OnlyEnforceIf(r)\n        model.Add(w_var == L_sc).OnlyEnforceIf(r.Not())\n        model.Add(h_var == W_sc).OnlyEnforceIf(r.Not())\n        \n        w_vars.append(w_var)\n        h_vars.append(h_var)\n        \n        xmin = model.NewIntVar(0, int(2 * radius * SCALE), f'xmin_{i}')\n        xmax = model.NewIntVar(0, int(2 * radius * SCALE), f'xmax_{i}')\n        ymin = model.NewIntVar(0, int(2 * radius * SCALE), f'ymin_{i}')\n        ymax = model.NewIntVar(0, int(2 * radius * SCALE), f'ymax_{i}')\n        \n        model.Add(xmax == xmin + w_var)\n        model.Add(ymax == ymin + h_var)\n        \n        x_min.append(xmin)\n        y_min.append(ymin)\n        \n        x_int = model.NewIntervalVar(xmin, w_var, xmax, f'x_int_{i}')\n        y_int = model.NewIntervalVar(ymin, h_var, ymax, f'y_int_{i}')\n        x_intervals.append(x_int)\n        y_intervals.append(y_int)\n        \n        for p_x in [xmin, xmax]:\n            for p_y in [ymin, ymax]:\n                dx = model.NewIntVar(-int(2*radius*SCALE), int(2*radius*SCALE), '')\n                dy = model.NewIntVar(-int(2*radius*SCALE), int(2*radius*SCALE), '')\n                model.Add(dx == p_x - int(center[0]*SCALE))\n                model.Add(dy == p_y - int(center[1]*SCALE))\n                \n                dx_sq = model.NewIntVar(0, 100000000, '')\n                dy_sq = model.NewIntVar(0, 100000000, '')\n                \n                model.AddMultiplicationEquality(dx_sq, [dx, dx])\n                model.AddMultiplicationEquality(dy_sq, [dy, dy])\n                \n                model.Add(dx_sq + dy_sq <= R_scaled * R_scaled)\n\n    model.AddNoOverlap2D(x_intervals, y_intervals)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300.0\n    solver.parameters.log_search_progress = False\n    status = solver.Solve(model)\n\n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        placements = []\n        total_count = 0\n        for i in range(n):\n            vx = solver.Value(x_min[i])\n            vy = solver.Value(y_min[i])\n            vw = solver.Value(w_vars[i])\n            vh = solver.Value(h_vars[i])\n            \n            cx = (vx + vw / 2.0) / SCALE\n            cy = (vy + vh / 2.0) / SCALE\n            \n            rot_deg = 90 if solver.Value(rot[i]) else 0\n            \n            placements.append([cx, cy, rot_deg])\n            total_count += 1\n            \n        res = {\n            \"placements\": placements,\n            \"total_count\": total_count\n        }\n        print(json.dumps(res, indent=2))\n    else:\n        print(\"INFEASIBLE\")\n\nif __name__ == \"__main__\":\n    solve()\n"
+}

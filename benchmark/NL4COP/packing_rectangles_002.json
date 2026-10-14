@@ -1,0 +1,47 @@
+{
+    "problem_id": "packing_rectangles_002",
+    "problem_type": "Rectangle Packing Problem",
+    "difficulty": "medium",
+    "problem_description": "In a contemporary urban architecture firm, designers are planning an innovative rooftop garden installation for a luxury residential building. The garden will be situated within a circular terrace area with landscape coordinates centered at (43, 53) and a radius of 42 meters. Twelve distinct landscape modules require careful spatial arrangement: module 1 is a 12×22 meter herb garden section featuring culinary herbs and aromatic plants; module 2 encompasses a 32×12 meter meditation space with bamboo screening and zen garden elements; module 3 contains a 40×12 meter recreational zone with outdoor fitness equipment and yoga platforms; module 4 integrates a 45×11 meter water feature area with fountains and reflective pools; module 5 provides a 47×13 meter social gathering space with modular seating and fire pit arrangements; module 6 incorporates a 44×14 meter children's play area with safe, age-appropriate equipment; module 7 establishes a 13×46 meter vertical garden wall with climbing plants and automated irrigation; module 8 maintains a 17×38 meter outdoor dining pavilion with weather-resistant furniture; module 9 operates a 16×44 meter art installation space featuring rotating sculptures and exhibits; module 10 utilizes a 27×30 meter greenhouse structure for year-round plant cultivation; module 11 deploys a 37×23 meter wildlife habitat zone with native plant species and bird feeding stations; and module 12 contains a 23×37 meter multipurpose event lawn for small gatherings and ceremonies. Each module can be either included in the final design or deferred to future development phases, with partial implementation not permitted due to design integrity requirements. When included, a module must be positioned so that its entire area remains within the circular terrace boundary to maintain structural feasibility and aesthetic coherence. No two included modules may overlap to ensure proper circulation, maintenance access, and functional separation. The design team seeks to determine which modules to include and their optimal positioning to maximize the number of functional garden areas while creating a harmonious, sustainable rooftop environment. Positioning needs to follow the building's structural grid using whole number coordinates, each module's location is determined by its center point, and the specified orientations must be maintained to ensure proper sight lines and spatial flow throughout the garden.\n\nPrint the following fields: - installed: for each installed module, list placement with module ID, x, y. - total_installed: total number of installed modules.",
+    "reference_solution": {
+        "installed": [
+            [
+                0,
+                15,
+                66
+            ],
+            [
+                1,
+                19,
+                49
+            ],
+            [
+                2,
+                40,
+                37
+            ],
+            [
+                3,
+                43,
+                25
+            ],
+            [
+                5,
+                43,
+                80
+            ],
+            [
+                7,
+                71,
+                52
+            ],
+            [
+                9,
+                49,
+                58
+            ]
+        ],
+        "total_installed": 7
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef main():\n    M = list(range(1, 13))\n    w = [12, 32, 40, 45, 47, 44, 13, 17, 16, 27, 37, 23]\n    h = [22, 12, 12, 11, 13, 14, 46, 38, 44, 30, 23, 37]\n    \n    cx = 43\n    cy = 53\n    R = 42\n    R_squared = R * R\n    \n    model = cp_model.CpModel()\n    \n    include = {}\n    x = {}\n    y = {}\n    \n    for m in M:\n        idx = m - 1\n        include[m] = model.NewBoolVar(f\"include_{m}\")\n        \n        w_val = w[idx]\n        h_val = h[idx]\n        x_min = math.ceil(cx - R + w_val/2)\n        x_max = math.floor(cx + R - w_val/2)\n        y_min = math.ceil(cy - R + h_val/2)\n        y_max = math.floor(cy + R - h_val/2)\n        \n        x[m] = model.NewIntVar(x_min, x_max, f\"x_{m}\")\n        y[m] = model.NewIntVar(y_min, y_max, f\"y_{m}\")\n    \n    cx2 = 2 * cx\n    cy2 = 2 * cy\n    R2_squared = 4 * R_squared\n    \n    for m in M:\n        idx = m - 1\n        w_val = w[idx]\n        h_val = h[idx]\n        \n        x_min_val = math.ceil(cx - R + w_val/2)\n        x_max_val = math.floor(cx + R - w_val/2)\n        y_min_val = math.ceil(cy - R + h_val/2)\n        y_max_val = math.floor(cy + R - h_val/2)\n        \n        x2 = model.NewIntVar(2*x_min_val, 2*x_max_val, f\"x2_{m}\")\n        y2 = model.NewIntVar(2*y_min_val, 2*y_max_val, f\"y2_{m}\")\n        model.Add(x2 == 2 * x[m])\n        model.Add(y2 == 2 * y[m])\n        \n        x_bl = model.NewIntVar(2*x_min_val - w_val, 2*x_max_val - w_val, f\"x_bl_{m}\")\n        y_bl = model.NewIntVar(2*y_min_val - h_val, 2*y_max_val - h_val, f\"y_bl_{m}\")\n        model.Add(x_bl == x2 - w_val)\n        model.Add(y_bl == y2 - h_val)\n        \n        x_br = model.NewIntVar(2*x_min_val + w_val, 2*x_max_val + w_val, f\"x_br_{m}\")\n        y_br = model.NewIntVar(2*y_min_val - h_val, 2*y_max_val - h_val, f\"y_br_{m}\")\n        model.Add(x_br == x2 + w_val)\n        model.Add(y_br == y2 - h_val)\n        \n        x_tl = model.NewIntVar(2*x_min_val - w_val, 2*x_max_val - w_val, f\"x_tl_{m}\")\n        y_tl = model.NewIntVar(2*y_min_val + h_val, 2*y_max_val + h_val, f\"y_tl_{m}\")\n        model.Add(x_tl == x2 - w_val)\n        model.Add(y_tl == y2 + h_val)\n        \n        x_tr = model.NewIntVar(2*x_min_val + w_val, 2*x_max_val + w_val, f\"x_tr_{m}\")\n        y_tr = model.NewIntVar(2*y_min_val + h_val, 2*y_max_val + h_val, f\"y_tr_{m}\")\n        model.Add(x_tr == x2 + w_val)\n        model.Add(y_tr == y2 + h_val)\n        \n        corners = [(x_bl, y_bl), (x_br, y_br), (x_tl, y_tl), (x_tr, y_tr)]\n        \n        for corner_idx, (corner_x2, corner_y2) in enumerate(corners):\n            dx2 = model.NewIntVar(-2*R*2, 2*R*2, f\"dx2_{m}_{corner_idx}\")\n            dy2 = model.NewIntVar(-2*R*2, 2*R*2, f\"dy2_{m}_{corner_idx}\")\n            model.Add(dx2 == corner_x2 - cx2)\n            model.Add(dy2 == corner_y2 - cy2)\n            \n            dx2_sq = model.NewIntVar(0, R2_squared * 4, f\"dx2_sq_{m}_{corner_idx}\")\n            dy2_sq = model.NewIntVar(0, R2_squared * 4, f\"dy2_sq_{m}_{corner_idx}\")\n            model.AddMultiplicationEquality(dx2_sq, [dx2, dx2])\n            model.AddMultiplicationEquality(dy2_sq, [dy2, dy2])\n            \n            dist2_sq = model.NewIntVar(0, R2_squared * 4, f\"dist2_sq_{m}_{corner_idx}\")\n            model.Add(dist2_sq == dx2_sq + dy2_sq)\n            \n            model.Add(dist2_sq <= R2_squared - 1).OnlyEnforceIf(include[m])\n    \n    for i in range(len(M)):\n        for j in range(i + 1, len(M)):\n            m1 = M[i]\n            m2 = M[j]\n            \n            min_x_sep = math.ceil((w[i] + w[j]) / 2)\n            min_y_sep = math.ceil((h[i] + h[j]) / 2)\n            \n            sep_x = model.NewBoolVar(f\"sep_x_{m1}_{m2}\")\n            sep_y = model.NewBoolVar(f\"sep_y_{m1}_{m2}\")\n            \n            x_ge = model.NewBoolVar(f\"x_ge_{m1}_{m2}\")\n            x_le = model.NewBoolVar(f\"x_le_{m1}_{m2}\")\n            \n            model.Add(x[m1] - x[m2] >= min_x_sep).OnlyEnforceIf(x_ge)\n            model.Add(x[m2] - x[m1] >= min_x_sep).OnlyEnforceIf(x_le)\n            \n            model.AddBoolOr([x_ge, x_le]).OnlyEnforceIf(sep_x)\n            model.AddImplication(x_ge, sep_x)\n            model.AddImplication(x_le, sep_x)\n            \n            y_ge = model.NewBoolVar(f\"y_ge_{m1}_{m2}\")\n            y_le = model.NewBoolVar(f\"y_le_{m1}_{m2}\")\n            \n            model.Add(y[m1] - y[m2] >= min_y_sep).OnlyEnforceIf(y_ge)\n            model.Add(y[m2] - y[m1] >= min_y_sep).OnlyEnforceIf(y_le)\n            \n            model.AddBoolOr([y_ge, y_le]).OnlyEnforceIf(sep_y)\n            model.AddImplication(y_ge, sep_y)\n            model.AddImplication(y_le, sep_y)\n            \n            model.AddBoolOr([sep_x, sep_y]).OnlyEnforceIf([include[m1], include[m2]])\n    \n    objective = sum(include[m] for m in M)\n    model.Maximize(objective)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        installed = []\n        for m in M:\n            if solver.Value(include[m]) == 1:\n                x_val = solver.Value(x[m])\n                y_val = solver.Value(y[m])\n                installed.append([m - 1, x_val, y_val])\n        result = {\n            \"installed\": installed,\n            \"total_installed\": len(installed)\n        }\n        print(json.dumps(result))\n    else:\n        result = {\n            \"installed\": [],\n            \"total_installed\": 0\n        }\n        print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

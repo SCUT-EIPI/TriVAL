@@ -1,0 +1,89 @@
+{
+    "problem_id": "packing_unequal_circles_003",
+    "problem_type": "Packing Unequal Circles",
+    "difficulty": "hard",
+    "problem_description": "In a cutting-edge aerospace composite manufacturing facility, engineers are developing a next-generation satellite antenna array that requires precise spatial configuration of heterogeneous radio frequency (RF) resonator elements on a circular substrate platform with a precisely defined 65-centimeter effective operational radius, positioned at coordinates (65, 65) within a class-100 cleanroom environment. Fifteen distinct circular RF resonator variants must be strategically positioned, each possessing unique electromagnetic field characteristics: resonator 1 is a circular element with 12-centimeter radius for X-band frequency reception; resonator 2 is a circular element with 7-centimeter radius for Ku-band signal processing; resonator 3 is a circular element with 21-centimeter radius for Ka-band high-gain applications; resonator 4 is a circular element with 4-centimeter radius for S-band telemetry; resonator 5 is a circular element with 18-centimeter radius for C-band beamforming; resonator 6 is a circular element with 9-centimeter radius for L-band filtering; resonator 7 is a circular element with 25-centimeter radius for multi-band operation; resonator 8 is a circular element with 2-centimeter radius for ultra-high Q-factor applications; resonator 9 is a circular element with 15-centimeter radius for millimeter-wave communications; resonator 10 is a circular element with 6-centimeter radius for GPS signal reception; resonator 11 is a circular element with 23-centimeter radius for beam steering capabilities; resonator 12 is a circular element with 11-centimeter radius for high-frequency transmission; resonator 13 is a circular element with 19-centimeter radius for ultra-wideband functionality; resonator 14 is a circular element with 3-centimeter radius for terahertz sensing; and resonator 15 is a circular element with 16-centimeter radius for 6G communications. Every activated resonator element must be completely contained within the substrate boundaries and maintain adequate spatial separation to prevent electromagnetic interference coupling and preserve individual RF performance characteristics. The engineering team seeks to determine the optimal spatial configuration strategy to maximize the number of simultaneously operational resonator elements while maintaining the entire antenna array's electromagnetic coherence and system-level performance metrics.\n\nPrint the following fields: - activated: activation status for each resonator. - positions: for each resonator, list coordinates with x, y. - num_activated: total number of activated resonators.",
+    "reference_solution": {
+        "activated": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        "positions": [
+            [
+                116,
+                56
+            ],
+            [
+                43,
+                117
+            ],
+            [
+                46,
+                26
+            ],
+            [
+                37,
+                72
+            ],
+            [
+                60,
+                63
+            ],
+            [
+                10,
+                74
+            ],
+            [
+                73,
+                104
+            ],
+            [
+                5,
+                84
+            ],
+            [
+                26,
+                56
+            ],
+            [
+                105,
+                106
+            ],
+            [
+                90,
+                32
+            ],
+            [
+                89,
+                66
+            ],
+            [
+                30,
+                94
+            ],
+            [
+                4,
+                54
+            ],
+            [
+                110,
+                84
+            ]
+        ],
+        "num_activated": 15
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef main():\n    N = 15\n    radii = [12, 7, 21, 4, 18, 9, 25, 2, 15, 6, 23, 11, 19, 3, 16]\n    R_substrate = 65\n    center_x = 65\n    center_y = 65\n    \n    model = cp_model.CpModel()\n    \n    activated = [model.NewBoolVar(f\"activated_{i}\") for i in range(N)]\n    x = [model.NewIntVar(0, 130, f\"x_{i}\") for i in range(N)]\n    y = [model.NewIntVar(0, 130, f\"y_{i}\") for i in range(N)]\n    num_activated = model.NewIntVar(0, N, \"num_activated\")\n    \n    model.Add(num_activated == sum(activated))\n    \n    for i in range(N):\n        dx = model.NewIntVar(-130, 130, f\"dx_{i}\")\n        dy = model.NewIntVar(-130, 130, f\"dy_{i}\")\n        \n        model.Add(dx == x[i] - center_x)\n        model.Add(dy == y[i] - center_y)\n        \n        dx_sq = model.NewIntVar(0, 130*130, f\"dx_sq_{i}\")\n        dy_sq = model.NewIntVar(0, 130*130, f\"dy_sq_{i}\")\n        \n        model.AddMultiplicationEquality(dx_sq, [dx, dx])\n        model.AddMultiplicationEquality(dy_sq, [dy, dy])\n        \n        dist_sq = model.NewIntVar(0, 2*130*130, f\"dist_sq_{i}\")\n        model.Add(dist_sq == dx_sq + dy_sq)\n        \n        max_dist = R_substrate - radii[i]\n        max_dist_sq = max_dist * max_dist\n        \n        model.Add(dist_sq <= max_dist_sq).OnlyEnforceIf(activated[i])\n        \n        model.Add(x[i] == center_x).OnlyEnforceIf(activated[i].Not())\n        model.Add(y[i] == center_y).OnlyEnforceIf(activated[i].Not())\n    \n    for i in range(N):\n        for j in range(i+1, N):\n            dx_ij = model.NewIntVar(-130, 130, f\"dx_{i}_{j}\")\n            dy_ij = model.NewIntVar(-130, 130, f\"dy_{i}_{j}\")\n            \n            model.Add(dx_ij == x[i] - x[j])\n            model.Add(dy_ij == y[i] - y[j])\n            \n            dx_ij_sq = model.NewIntVar(0, 130*130, f\"dx_ij_sq_{i}_{j}\")\n            dy_ij_sq = model.NewIntVar(0, 130*130, f\"dy_ij_sq_{i}_{j}\")\n            \n            model.AddMultiplicationEquality(dx_ij_sq, [dx_ij, dx_ij])\n            model.AddMultiplicationEquality(dy_ij_sq, [dy_ij, dy_ij])\n            \n            dist_ij_sq = model.NewIntVar(0, 2*130*130, f\"dist_ij_sq_{i}_{j}\")\n            model.Add(dist_ij_sq == dx_ij_sq + dy_ij_sq)\n            \n            min_dist = radii[i] + radii[j]\n            min_dist_sq = min_dist * min_dist\n            \n            both_activated = model.NewBoolVar(f\"both_activated_{i}_{j}\")\n            model.AddBoolAnd([activated[i], activated[j]]).OnlyEnforceIf(both_activated)\n            model.AddBoolOr([activated[i].Not(), activated[j].Not()]).OnlyEnforceIf(both_activated.Not())\n            \n            model.Add(dist_ij_sq >= min_dist_sq).OnlyEnforceIf(both_activated)\n    \n    model.Maximize(num_activated)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        activated_values = [int(solver.Value(activated[i])) for i in range(N)]\n        positions = [[solver.Value(x[i]), solver.Value(y[i])] for i in range(N)]\n        num_activated_value = solver.Value(num_activated)\n        result = {\n            \"activated\": activated_values,\n            \"positions\": positions,\n            \"num_activated\": num_activated_value\n        }\n    else:\n        result = {\n            \"activated\": [0] * N,\n            \"positions\": [[None, None] for _ in range(N)],\n            \"num_activated\": 0\n        }\n    print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

@@ -1,0 +1,64 @@
+{
+    "problem_id": "container_loading_001",
+    "problem_type": "Container Loading Problem",
+    "difficulty": "simple",
+    "problem_description": "A logistics coordinator is planning the loading of a small shipping container with two distinct product types to optimize space usage. The container has internal dimensions of 5 units in length, 3 units in width, and 8 units in height. The products to be loaded are: 1. Flat, wide panels (Type ID: 1): Each panel has dimensions 1 unit (length) by 3 units (width) by 4 units (height). There are 4 of these panels available. 2. Rectangular boxes (Type ID: 2): Each box has dimensions 4 units (length) by 2 units (width) by 5 units (height). There are 10 of these boxes available. Products can be rotated in any orientation to fit into the container. The goal is to pack as many products as possible into the container to maximize the volume utilization ratio. Products must be placed so that they are fully inside the container and do not overlap with each other. The coordinator wants to find the best arrangement of these products to make the most efficient use of the available shipping space.\n\nPrint the following fields: - placements: for each product, list placement with type, x, y, z, oriented_length, oriented_width, oriented_height. - volume_utilization: ratio of used container volume to total volume.",
+    "reference_solution": {
+        "placements": [
+            [
+                1,
+                [
+                    2,
+                    2,
+                    0
+                ],
+                [
+                    3,
+                    1,
+                    4
+                ]
+            ],
+            [
+                1,
+                [
+                    2,
+                    0,
+                    4
+                ],
+                [
+                    3,
+                    1,
+                    4
+                ]
+            ],
+            [
+                2,
+                [
+                    0,
+                    0,
+                    0
+                ],
+                [
+                    5,
+                    2,
+                    4
+                ]
+            ],
+            [
+                2,
+                [
+                    0,
+                    1,
+                    4
+                ],
+                [
+                    5,
+                    2,
+                    4
+                ]
+            ]
+        ],
+        "volume_utilization": 0.8666666666666667
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    container_length = 5\n    container_width = 3\n    container_height = 8\n    \n    product_types = [1, 2]\n    \n    product_dims = {\n        1: (1, 3, 4),\n        2: (4, 2, 5)\n    }\n    \n    available_count = {1: 4, 2: 10}\n    \n    max_units = {t: available_count[t] for t in product_types}\n    \n    rotations = list(range(6))\n    \n    def get_rotation_dims(l, w, h, rot_idx):\n        permutations = [\n            (l, w, h), (l, h, w),\n            (w, l, h), (w, h, l),\n            (h, l, w), (h, w, l)\n        ]\n        return permutations[rot_idx]\n    \n    is_active = {}\n    for t in product_types:\n        for i in range(max_units[t]):\n            is_active[(i, t)] = model.NewBoolVar(f\"is_active_{i}_{t}\")\n    \n    placed_count = {}\n    for t in product_types:\n        placed_count[t] = model.NewIntVar(0, max_units[t], f\"placed_count_{t}\")\n    \n    x = {}\n    y = {}\n    z = {}\n    orientation = {}\n    oriented_length = {}\n    oriented_width = {}\n    oriented_height = {}\n    \n    for t in product_types:\n        l0, w0, h0 = product_dims[t]\n        max_dim = max(l0, w0, h0)\n        for i in range(max_units[t]):\n            x[(i, t)] = model.NewIntVar(0, container_length, f\"x_{i}_{t}\")\n            y[(i, t)] = model.NewIntVar(0, container_width, f\"y_{i}_{t}\")\n            z[(i, t)] = model.NewIntVar(0, container_height, f\"z_{i}_{t}\")\n            \n            orientation[(i, t)] = model.NewIntVar(0, 5, f\"orientation_{i}_{t}\")\n            \n            oriented_length[(i, t)] = model.NewIntVar(0, max_dim, f\"oriented_length_{i}_{t}\")\n            oriented_width[(i, t)] = model.NewIntVar(0, max_dim, f\"oriented_width_{i}_{t}\")\n            oriented_height[(i, t)] = model.NewIntVar(0, max_dim, f\"oriented_height_{i}_{t}\")\n    \n    for t in product_types:\n        model.Add(placed_count[t] == sum(is_active[(i, t)] for i in range(max_units[t])))\n    \n    for t in product_types:\n        model.Add(placed_count[t] <= available_count[t])\n    \n    for t in product_types:\n        l0, w0, h0 = product_dims[t]\n        for i in range(max_units[t]):\n            rot_indicator = {}\n            for rot in rotations:\n                rot_indicator[(i, t, rot)] = model.NewBoolVar(f\"rot_indicator_{i}_{t}_{rot}\")\n            \n            model.Add(sum(rot_indicator[(i, t, rot)] for rot in rotations) == is_active[(i, t)])\n            \n            for rot in rotations:\n                model.Add(orientation[(i, t)] == rot).OnlyEnforceIf(rot_indicator[(i, t, rot)])\n                \n                rot_l, rot_w, rot_h = get_rotation_dims(l0, w0, h0, rot)\n                \n                model.Add(oriented_length[(i, t)] == rot_l).OnlyEnforceIf(rot_indicator[(i, t, rot)])\n                model.Add(oriented_width[(i, t)] == rot_w).OnlyEnforceIf(rot_indicator[(i, t, rot)])\n                model.Add(oriented_height[(i, t)] == rot_h).OnlyEnforceIf(rot_indicator[(i, t, rot)])\n    \n    M = 1000\n    for t in product_types:\n        for i in range(max_units[t]):\n            model.Add(x[(i, t)] + oriented_length[(i, t)] <= container_length + M * (1 - is_active[(i, t)]))\n            \n            model.Add(y[(i, t)] + oriented_width[(i, t)] <= container_width + M * (1 - is_active[(i, t)]))\n            \n            model.Add(z[(i, t)] + oriented_height[(i, t)] <= container_height + M * (1 - is_active[(i, t)]))\n    \n    all_products = []\n    for t in product_types:\n        for i in range(max_units[t]):\n            all_products.append((i, t))\n    \n    for idx1, (i1, t1) in enumerate(all_products):\n        for idx2, (i2, t2) in enumerate(all_products):\n            if idx1 >= idx2:\n                continue\n            \n            left_of = model.NewBoolVar(f\"left_of_{i1}_{t1}_{i2}_{t2}\")\n            right_of = model.NewBoolVar(f\"right_of_{i1}_{t1}_{i2}_{t2}\")\n            behind = model.NewBoolVar(f\"behind_{i1}_{t1}_{i2}_{t2}\")\n            front_of = model.NewBoolVar(f\"front_of_{i1}_{t1}_{i2}_{t2}\")\n            below = model.NewBoolVar(f\"below_{i1}_{t1}_{i2}_{t2}\")\n            above = model.NewBoolVar(f\"above_{i1}_{t1}_{i2}_{t2}\")\n            \n            model.Add(x[(i1, t1)] + oriented_length[(i1, t1)] <= x[(i2, t2)]).OnlyEnforceIf(left_of)\n            \n            model.Add(x[(i2, t2)] + oriented_length[(i2, t2)] <= x[(i1, t1)]).OnlyEnforceIf(right_of)\n            \n            model.Add(y[(i1, t1)] + oriented_width[(i1, t1)] <= y[(i2, t2)]).OnlyEnforceIf(behind)\n            \n            model.Add(y[(i2, t2)] + oriented_width[(i2, t2)] <= y[(i1, t1)]).OnlyEnforceIf(front_of)\n            \n            model.Add(z[(i1, t1)] + oriented_height[(i1, t1)] <= z[(i2, t2)]).OnlyEnforceIf(below)\n            \n            model.Add(z[(i2, t2)] + oriented_height[(i2, t2)] <= z[(i1, t1)]).OnlyEnforceIf(above)\n            \n            model.AddBoolOr([left_of, right_of, behind, front_of, below, above]).OnlyEnforceIf(\n                [is_active[(i1, t1)], is_active[(i2, t2)]])\n            \n    for t in product_types:\n        for i in range(max_units[t]):\n            model.Add(x[(i, t)] == 0).OnlyEnforceIf(is_active[(i, t)].Not())\n            model.Add(y[(i, t)] == 0).OnlyEnforceIf(is_active[(i, t)].Not())\n            model.Add(z[(i, t)] == 0).OnlyEnforceIf(is_active[(i, t)].Not())\n    \n    total_container_volume = container_length * container_width * container_height\n    \n    product_volume = {}\n    total_packed_volume = model.NewIntVar(0, total_container_volume, \"total_packed_volume\")\n    \n    volume_terms = []\n    for t in product_types:\n        for i in range(max_units[t]):\n            vol_var = model.NewIntVar(0, total_container_volume, f\"volume_{i}_{t}\")\n            \n            length_width = model.NewIntVar(0, total_container_volume, f\"length_width_{i}_{t}\")\n            model.AddMultiplicationEquality(length_width, [oriented_length[(i, t)], oriented_width[(i, t)]])\n            \n            length_width_height = model.NewIntVar(0, total_container_volume, f\"length_width_height_{i}_{t}\")\n            model.AddMultiplicationEquality(length_width_height, [length_width, oriented_height[(i, t)]])\n            \n            model.Add(vol_var == length_width_height).OnlyEnforceIf(is_active[(i, t)])\n            model.Add(vol_var == 0).OnlyEnforceIf(is_active[(i, t)].Not())\n            \n            volume_terms.append(vol_var)\n    \n    model.Add(total_packed_volume == sum(volume_terms))\n    \n    model.Maximize(total_packed_volume)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_container_volume_val = container_length * container_width * container_height\n        obj_value = solver.Value(total_packed_volume)\n        volume_utilization = obj_value / total_container_volume_val\n        \n        placements = []\n        for t in product_types:\n            for i in range(max_units[t]):\n                if solver.Value(is_active[(i, t)]) == 1:\n                    x_val = solver.Value(x[(i, t)])\n                    y_val = solver.Value(y[(i, t)])\n                    z_val = solver.Value(z[(i, t)])\n                    length_val = solver.Value(oriented_length[(i, t)])\n                    width_val = solver.Value(oriented_width[(i, t)])\n                    height_val = solver.Value(oriented_height[(i, t)])\n                    \n                    placement_entry = [\n                        t,\n                        [x_val, y_val, z_val],\n                        [length_val, width_val, height_val]\n                    ]\n                    placements.append(placement_entry)\n        \n        result = {\n            \"placements\": placements,\n            \"volume_utilization\": volume_utilization\n        }\n    else:\n        result = {\n            \"placements\": [],\n            \"volume_utilization\": 0.0\n        }\n    \n    print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

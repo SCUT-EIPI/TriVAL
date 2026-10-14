@@ -1,0 +1,49 @@
+{
+    "problem_id": "packing_unequal_circles_001",
+    "problem_type": "Packing Unequal Circles",
+    "difficulty": "simple",
+    "problem_description": "In a state-of-the-art quantum computing research facility, a team of quantum engineers faces the complex challenge of spatially configuring seven heterogeneous quantum processing units on a semiconductor wafer substrate with a precisely defined 25-micrometer effective operational radius, situated at coordinates (25, 25) within an ultra-low temperature cryogenic chamber operating near absolute zero. Each quantum processing unit possesses unique quantum coherence preservation characteristics and requires specific spatial isolation parameters: unit 1 maintains an 8-micrometer coherence field for spin-orbit coupling optimization; unit 2 requires a 12-micrometer electromagnetic isolation zone for photon emission modulation; unit 3 implements a 5-micrometer quantum tunneling barrier containment field; unit 4 establishes a 15-micrometer many-body entanglement facilitation region; unit 5 provides a 6-micrometer environmental decoherence mitigation perimeter; unit 6 utilizes a 10-micrometer quantum state vector initialization zone; and unit 7 operates with a 9-micrometer temporal coherence extension field. Every activated quantum processing unit must fit completely within the wafer boundaries and keep enough distance from others to avoid quantum interference and maintain stable quantum mechanical behavior. The engineers need to find the best arrangement and placement strategy to get the most units working at the same time while keeping the entire quantum system coherent and compatible.\n\nPrint the following fields: - activated: activation status for each quantum unit. - positions: for each unit, list coordinates with x, y. - num_active_units: total number of active units.",
+    "reference_solution": {
+        "activated": [
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1
+        ],
+        "positions": [
+            [
+                30,
+                41
+            ],
+            [
+                24,
+                13
+            ],
+            [
+                41,
+                13
+            ],
+            [
+                -1,
+                -1
+            ],
+            [
+                7,
+                19
+            ],
+            [
+                13,
+                34
+            ],
+            [
+                40,
+                27
+            ]
+        ],
+        "num_active_units": 6
+    },
+    "solver_code": "\"\"\"\npacking_unequal_circles_001\nWafer: circular container, center (25,25), radius 25.\n7 quantum units with radii [8,12,5,15,6,10,9].\nGoal: maximize number of active units placed inside wafer without overlap.\nUse OR-Tools CP-SAT with integer coordinates (scaled).\n\"\"\"\nfrom ortools.sat.python import cp_model\nimport json\nimport sys\nimport math\n\ndef solve():\n    radii = [8, 12, 5, 15, 6, 10, 9]\n    n = len(radii)\n    cx, cy, cr = 25, 25, 25\n\n    SCALE = 1\n    model = cp_model.CpModel()\n\n    activated = [model.NewBoolVar(f'a_{i}') for i in range(n)]\n    x = [model.NewIntVar(0, 50, f'x_{i}') for i in range(n)]\n    y = [model.NewIntVar(0, 50, f'y_{i}') for i in range(n)]\n\n    for i in range(n):\n        r = radii[i]\n        if r >= cr:\n            model.Add(activated[i] == 0)\n            continue\n\n        max_offset = cr - r\n        dx = model.NewIntVar(-max_offset, max_offset, f'dx_{i}')\n        dy = model.NewIntVar(-max_offset, max_offset, f'dy_{i}')\n        model.Add(dx == x[i] - cx)\n        model.Add(dy == y[i] - cy)\n        sq_dist = model.NewIntVar(0, max_offset*max_offset, f'sq_{i}')\n        model.AddMultiplicationEquality(sq_dist, [dx, dx])\n        sq_dist_y = model.NewIntVar(0, max_offset*max_offset, f'sqy_{i}')\n        model.AddMultiplicationEquality(sq_dist_y, [dy, dy])\n        total_sq = model.NewIntVar(0, 2*max_offset*max_offset, f'tsq_{i}')\n        model.Add(total_sq == sq_dist + sq_dist_y)\n        model.Add(total_sq <= max_offset * max_offset).OnlyEnforceIf(activated[i])\n        model.Add(x[i] == cx).OnlyEnforceIf(activated[i].Not())\n        model.Add(y[i] == cy).OnlyEnforceIf(activated[i].Not())\n\n    for i in range(n):\n        for j in range(i+1, n):\n            min_dist_sq = (radii[i] + radii[j]) ** 2\n            both_active = model.NewBoolVar(f'both_{i}_{j}')\n            model.AddMultiplicationEquality(both_active, [activated[i], activated[j]])\n\n            diff_x = model.NewIntVar(-50, 50, f'diffx_{i}_{j}')\n            diff_y = model.NewIntVar(-50, 50, f'diffy_{i}_{j}')\n            model.Add(diff_x == x[i] - x[j])\n            model.Add(diff_y == y[i] - y[j])\n            sq_x = model.NewIntVar(0, 2500, f'sqx_{i}_{j}')\n            sq_y = model.NewIntVar(0, 2500, f'sqy_{i}_{j}')\n            model.AddMultiplicationEquality(sq_x, [diff_x, diff_x])\n            model.AddMultiplicationEquality(sq_y, [diff_y, diff_y])\n            dist_sq = model.NewIntVar(0, 5000, f'dsq_{i}_{j}')\n            model.Add(dist_sq == sq_x + sq_y)\n            model.Add(dist_sq >= min_dist_sq).OnlyEnforceIf(both_active)\n\n    model.Maximize(sum(activated))\n\n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300\n    solver.parameters.num_search_workers = 8\n\n    status = solver.Solve(model)\n    print(f\"[DEBUG] Status: {solver.StatusName(status)}, active={int(solver.ObjectiveValue()) if status in (cp_model.OPTIMAL, cp_model.FEASIBLE) else 'N/A'}\", file=sys.stderr)\n\n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        act_list = [solver.Value(activated[i]) for i in range(n)]\n        pos_list = []\n        for i in range(n):\n            if act_list[i]:\n                pos_list.append([solver.Value(x[i]), solver.Value(y[i])])\n            else:\n                pos_list.append([-1, -1])\n        num_active = sum(act_list)\n        print(json.dumps({\n            \"activated\": act_list,\n            \"positions\": pos_list,\n            \"num_active_units\": num_active\n        }))\n    else:\n        print(json.dumps({\"error\": \"no solution\"}))\n\nif __name__ == '__main__':\n    solve()\n"
+}

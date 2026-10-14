@@ -1,0 +1,63 @@
+{
+    "problem_id": "container_loading_with_weight_restrictions_001",
+    "problem_type": "Container Loading with Weight Restrictions Problem",
+    "difficulty": "simple",
+    "problem_description": "A warehouse manager needs to optimize the loading of boxes into a storage container measuring 200×100×150 cm. Available are Type 1 boxes (3 units available, each 80×60×40 cm, weighing 50 kg) and Type 2 boxes (4 units available, each 50×40×30 cm, weighing 30 kg). Each box can be placed in one of three orientations by rotating its dimensions. Boxes must be placed such that they do not extend beyond the container boundaries in any dimension. Additionally, boxes cannot overlap with each other in the container space. The objective is to maximize the total volume of boxes loaded into the container, thereby achieving the highest possible space utilization rate.\n\nPrint the following fields: - box_placements: for each box, list placement with type, orientation, x, y, z. - space_utilization: ratio of used container space to total space. - total_volume_used: total volume of placed boxes. - container_volume: total container volume.",
+    "reference_solution": {
+        "box_placements": [
+            [
+                1,
+                3,
+                60,
+                1,
+                0
+            ],
+            [
+                1,
+                3,
+                0,
+                1,
+                50
+            ],
+            [
+                1,
+                3,
+                60,
+                41,
+                1
+            ],
+            [
+                2,
+                3,
+                120,
+                61,
+                50
+            ],
+            [
+                2,
+                3,
+                151,
+                61,
+                100
+            ],
+            [
+                2,
+                3,
+                151,
+                61,
+                0
+            ],
+            [
+                2,
+                3,
+                160,
+                61,
+                50
+            ]
+        ],
+        "space_utilization": 0.272,
+        "total_volume_used": 816000,
+        "container_volume": 3000000
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    container_length = 200\n    container_width = 100\n    container_height = 150\n    \n    box_types = [1, 2]\n    available = {1: 3, 2: 4}\n    \n    base_dimensions = {\n        1: [80, 60, 40],\n        2: [50, 40, 30]\n    }\n    \n    orientation_mapping = {}\n    for t in box_types:\n        L, W, H = base_dimensions[t]\n        orientation_mapping[t] = {\n            1: (L, W, H),\n            2: (L, H, W),\n            3: (W, H, L)\n        }\n    \n    place = {}\n    orientation = {}\n    x = {}\n    y = {}\n    z = {}\n    \n    for t in box_types:\n        place[t] = []\n        orientation[t] = []\n        x[t] = []\n        y[t] = []\n        z[t] = []\n        \n        for i in range(available[t]):\n            place[t].append(model.NewBoolVar(f\"place_{t}_{i}\"))\n            \n            orientation[t].append(model.NewIntVar(1, 3, f\"orientation_{t}_{i}\"))\n            \n            x[t].append(model.NewIntVar(0, container_length, f\"x_{t}_{i}\"))\n            y[t].append(model.NewIntVar(0, container_width, f\"y_{t}_{i}\"))\n            z[t].append(model.NewIntVar(0, container_height, f\"z_{t}_{i}\"))\n    \n    dx_var = {}\n    dy_var = {}\n    dz_var = {}\n    \n    for t in box_types:\n        dx_var[t] = []\n        dy_var[t] = []\n        dz_var[t] = []\n        \n        for i in range(available[t]):\n            dx_var[t].append(model.NewIntVar(0, max(orientation_mapping[t][o][0] for o in [1,2,3]), \n                                           f\"dx_{t}_{i}\"))\n            dy_var[t].append(model.NewIntVar(0, max(orientation_mapping[t][o][1] for o in [1,2,3]), \n                                           f\"dy_{t}_{i}\"))\n            dz_var[t].append(model.NewIntVar(0, max(orientation_mapping[t][o][2] for o in [1,2,3]), \n                                           f\"dz_{t}_{i}\"))\n            \n            dx_values = [orientation_mapping[t][o][0] for o in [1, 2, 3]]\n            dy_values = [orientation_mapping[t][o][1] for o in [1, 2, 3]]\n            dz_values = [orientation_mapping[t][o][2] for o in [1, 2, 3]]\n            \n            orientation_idx = model.NewIntVar(0, 2, f\"orientation_idx_{t}_{i}\")\n            model.Add(orientation_idx == orientation[t][i] - 1)\n            \n            model.AddElement(orientation_idx, dx_values, dx_var[t][i])\n            model.AddElement(orientation_idx, dy_values, dy_var[t][i])\n            model.AddElement(orientation_idx, dz_values, dz_var[t][i])\n            \n            M = container_length + container_width + container_height\n            \n            x_bound = model.NewIntVar(-M, container_length, f\"x_bound_{t}_{i}\")\n            y_bound = model.NewIntVar(-M, container_width, f\"y_bound_{t}_{i}\")\n            z_bound = model.NewIntVar(-M, container_height, f\"z_bound_{t}_{i}\")\n            \n            model.Add(x_bound == x[t][i] + dx_var[t][i] - M * (1 - place[t][i]))\n            model.Add(y_bound == y[t][i] + dy_var[t][i] - M * (1 - place[t][i]))\n            model.Add(z_bound == z[t][i] + dz_var[t][i] - M * (1 - place[t][i]))\n            \n            model.Add(x_bound <= container_length)\n            model.Add(y_bound <= container_width)\n            model.Add(z_bound <= container_height)\n            \n            model.Add(x[t][i] == 0).OnlyEnforceIf(place[t][i].Not())\n            model.Add(y[t][i] == 0).OnlyEnforceIf(place[t][i].Not())\n            model.Add(z[t][i] == 0).OnlyEnforceIf(place[t][i].Not())\n    \n    all_boxes = []\n    for t in box_types:\n        for i in range(available[t]):\n            all_boxes.append((t, i))\n    \n    for idx1, (t1, i1) in enumerate(all_boxes):\n        for idx2, (t2, i2) in enumerate(all_boxes):\n            if idx1 >= idx2:\n                continue\n            \n            b_left = model.NewBoolVar(f\"b_left_{t1}_{i1}_{t2}_{i2}\")\n            b_right = model.NewBoolVar(f\"b_right_{t1}_{i1}_{t2}_{i2}\")\n            b_behind = model.NewBoolVar(f\"b_behind_{t1}_{i1}_{t2}_{i2}\")\n            b_front = model.NewBoolVar(f\"b_front_{t1}_{i1}_{t2}_{i2}\")\n            b_below = model.NewBoolVar(f\"b_below_{t1}_{i1}_{t2}_{i2}\")\n            b_above = model.NewBoolVar(f\"b_above_{t1}_{i1}_{t2}_{i2}\")\n            \n            model.Add(place[t1][i1] + place[t2][i2] - 1 <= \n                      b_left + b_right + b_behind + b_front + b_below + b_above)\n            \n            max_dim = 0\n            for t in box_types:\n                for orient in [1, 2, 3]:\n                    for dim in orientation_mapping[t][orient]:\n                        if dim > max_dim:\n                            max_dim = dim\n            M = container_length + container_width + container_height + max_dim\n            \n            model.Add(x[t1][i1] + dx_var[t1][i1] <= x[t2][i2] + \n                      M * (1 - b_left) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n            \n            model.Add(x[t2][i2] + dx_var[t2][i2] <= x[t1][i1] + \n                      M * (1 - b_right) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n            \n            model.Add(y[t1][i1] + dy_var[t1][i1] <= y[t2][i2] + \n                      M * (1 - b_behind) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n            \n            model.Add(y[t2][i2] + dy_var[t2][i2] <= y[t1][i1] + \n                      M * (1 - b_front) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n            \n            model.Add(z[t1][i1] + dz_var[t1][i1] <= z[t2][i2] + \n                      M * (1 - b_below) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n            \n            model.Add(z[t2][i2] + dz_var[t2][i2] <= z[t1][i1] + \n                      M * (1 - b_above) + M * (1 - place[t1][i1]) + M * (1 - place[t2][i2]))\n    \n    volume_var = {}\n    objective_terms = []\n    \n    for t in box_types:\n        volume_var[t] = []\n        for i in range(available[t]):\n            \n            dx_dy_prod = model.NewIntVar(0, container_length * container_width, \n                                        f\"dx_dy_prod_{t}_{i}\")\n            model.AddMultiplicationEquality(dx_dy_prod, [dx_var[t][i], dy_var[t][i]])\n            \n            vol = model.NewIntVar(0, container_length * container_width * container_height,\n                                 f\"volume_{t}_{i}\")\n            model.AddMultiplicationEquality(vol, [dx_dy_prod, dz_var[t][i]])\n            volume_var[t].append(vol)\n            \n            placed_volume = model.NewIntVar(0, container_length * container_width * container_height,\n                                           f\"placed_volume_{t}_{i}\")\n            \n            M_vol = container_length * container_width * container_height\n            model.Add(placed_volume <= vol)\n            model.Add(placed_volume <= M_vol * place[t][i])\n            model.Add(placed_volume >= vol - M_vol * (1 - place[t][i]))\n            \n            objective_terms.append(placed_volume)\n    \n    model.Maximize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        container_volume = container_length * container_width * container_height\n        box_placements = []\n        total_volume_used = 0\n        \n        for t in box_types:\n            for i in range(available[t]):\n                if solver.Value(place[t][i]) == 1:\n                    orient = solver.Value(orientation[t][i])\n                    dx, dy, dz = orientation_mapping[t][orient]\n                    box_volume = dx * dy * dz\n                    total_volume_used += box_volume\n                    box_placements.append([t, orient, solver.Value(x[t][i]), solver.Value(y[t][i]), solver.Value(z[t][i])])\n        \n        space_utilization = total_volume_used / container_volume\n        result = {\n            \"box_placements\": box_placements,\n            \"space_utilization\": round(space_utilization, 3),\n            \"total_volume_used\": total_volume_used,\n            \"container_volume\": container_volume\n        }\n        print(json.dumps(result))\n    else:\n        result = {\n            \"box_placements\": [],\n            \"space_utilization\": 0.0,\n            \"total_volume_used\": 0,\n            \"container_volume\": container_length * container_width * container_height\n        }\n        print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

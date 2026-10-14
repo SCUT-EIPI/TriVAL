@@ -1,0 +1,116 @@
+{
+    "problem_id": "container_loading_003",
+    "problem_type": "Container Loading Problem",
+    "difficulty": "hard",
+    "problem_description": "A furniture manufacturer is preparing a shipment of various furniture items for a customer order. The items need to be packed into a standard shipping container for transport. The container has internal dimensions of 30 units in length, 15 units in width, and 12 units in height. The furniture items to be loaded are: 1. Standard wardrobes (Type ID: 1): Each wardrobe has dimensions 11 units (length) by 6 units (width) by 8 units (height). There are 2 of these wardrobes available. 2. Tall bookcases (Type ID: 2): Each bookcase has dimensions 9 units (length) by 5 units (width) by 15 units (height). There are 3 of these bookcases available. 3. Conference tables (Type ID: 3): Each table has dimensions 7 units (length) by 4 units (width) by 13 units (height). There are 2 of these tables available. 4. Large office desks (Type ID: 4): Each desk has dimensions 8 units (length) by 12 units (width) by 13 units (height). There are 4 of these desks available. 5. Small storage units (Type ID: 5): Each storage unit has dimensions 6 units (length) by 5 units (width) by 7 units (height). There are 2 of these storage units available. The items can be rotated in any orientation to fit into the container. The goal is to pack as many items as possible into the container to maximize the volume utilization ratio. Items must be placed so that they are fully inside the container and do not overlap with each other. The logistics manager wants to find the best arrangement of these furniture items to make the most efficient use of the available shipping space.\n\nPrint the following fields: - placements: for each furniture item, list placement with type, x, y, z, oriented_length, oriented_width, oriented_height. - volume_utilization: ratio of used container volume to total volume.",
+    "reference_solution": {
+        "placements": [
+            [
+                1,
+                [
+                    18,
+                    1,
+                    4
+                ],
+                [
+                    11,
+                    6,
+                    8
+                ]
+            ],
+            [
+                2,
+                [
+                    8,
+                    0,
+                    0
+                ],
+                [
+                    9,
+                    15,
+                    5
+                ]
+            ],
+            [
+                3,
+                [
+                    17,
+                    0,
+                    0
+                ],
+                [
+                    13,
+                    7,
+                    4
+                ]
+            ],
+            [
+                3,
+                [
+                    8,
+                    2,
+                    5
+                ],
+                [
+                    4,
+                    13,
+                    7
+                ]
+            ],
+            [
+                4,
+                [
+                    17,
+                    7,
+                    0
+                ],
+                [
+                    13,
+                    8,
+                    12
+                ]
+            ],
+            [
+                4,
+                [
+                    0,
+                    2,
+                    0
+                ],
+                [
+                    8,
+                    13,
+                    12
+                ]
+            ],
+            [
+                5,
+                [
+                    12,
+                    7,
+                    6
+                ],
+                [
+                    5,
+                    7,
+                    6
+                ]
+            ],
+            [
+                5,
+                [
+                    12,
+                    0,
+                    5
+                ],
+                [
+                    5,
+                    7,
+                    6
+                ]
+            ]
+        ],
+        "volume_utilization": 0.8975925925925926
+    },
+    "solver_code": "import json\nfrom ortools.sat.python import cp_model\nfrom itertools import permutations\n\ndef solve_container_loading():\n    L, W, H = [30, 15, 12]\n    inventory = [\n        [11, 6, 8, 2],\n        [9, 5, 15, 3],\n        [7, 4, 13, 2],\n        [8, 12, 13, 4],\n        [6, 5, 7, 2]\n    ]\n\n    items = []\n    for type_idx, (l, w, h, qty) in enumerate(inventory):\n        for _ in range(qty):\n            items.append((type_idx + 1, l, w, h))\n            \n    num_items = len(items)\n\n    model = cp_model.CpModel()\n    \n    is_placed = [model.NewBoolVar(f'placed_{i}') for i in range(num_items)]\n\n    x = [model.NewIntVar(0, L, f'x_{i}') for i in range(num_items)]\n    y = [model.NewIntVar(0, W, f'y_{i}') for i in range(num_items)]\n    z = [model.NewIntVar(0, H, f'z_{i}') for i in range(num_items)]\n\n    dx = [model.NewIntVar(1, max((L, W, H)), f'dx_{i}') for i in range(num_items)]\n    dy = [model.NewIntVar(1, max((L, W, H)), f'dy_{i}') for i in range(num_items)]\n    dz = [model.NewIntVar(1, max((L, W, H)), f'dz_{i}') for i in range(num_items)]\n\n    ex = [model.NewIntVar(0, L, f'ex_{i}') for i in range(num_items)]\n    ey = [model.NewIntVar(0, W, f'ey_{i}') for i in range(num_items)]\n    ez = [model.NewIntVar(0, H, f'ez_{i}') for i in range(num_items)]\n\n    for i, (t, il, iw, ih) in enumerate(items):\n        valid_perms = []\n        for pl, pw, ph in set(permutations([il, iw, ih])):\n            if pl <= L and pw <= W and ph <= H:\n                valid_perms.append((pl, pw, ph))\n        \n        if not valid_perms:\n            model.Add(is_placed[i] == 0)\n            continue\n            \n        rot_vars = [model.NewBoolVar(f'rot_{i}_{j}') for j in range(len(valid_perms))]\n        \n        model.AddExactlyOne(rot_vars).OnlyEnforceIf(is_placed[i])\n        \n        for j in range(len(valid_perms)):\n            model.AddImplication(rot_vars[j], is_placed[i])\n        \n        for j, (pl, pw, ph) in enumerate(valid_perms):\n            model.Add(dx[i] == pl).OnlyEnforceIf(rot_vars[j])\n            model.Add(dy[i] == pw).OnlyEnforceIf(rot_vars[j])\n            model.Add(dz[i] == ph).OnlyEnforceIf(rot_vars[j])\n            \n        model.Add(ex[i] == x[i] + dx[i])\n        model.Add(ey[i] == y[i] + dy[i])\n        model.Add(ez[i] == z[i] + dz[i])\n        \n        model.Add(ex[i] <= L).OnlyEnforceIf(is_placed[i])\n        model.Add(ey[i] <= W).OnlyEnforceIf(is_placed[i])\n        model.Add(ez[i] <= H).OnlyEnforceIf(is_placed[i])\n\n    for i in range(num_items):\n        for j in range(i + 1, num_items):\n            b_both = model.NewBoolVar(f'both_{i}_{j}')\n            model.AddBoolAnd([is_placed[i], is_placed[j]]).OnlyEnforceIf(b_both)\n            model.AddBoolOr([is_placed[i].Not(), is_placed[j].Not()]).OnlyEnforceIf(b_both.Not())\n            \n            c1 = model.NewBoolVar(f'c1_{i}_{j}')\n            c2 = model.NewBoolVar(f'c2_{i}_{j}')\n            c3 = model.NewBoolVar(f'c3_{i}_{j}')\n            c4 = model.NewBoolVar(f'c4_{i}_{j}')\n            c5 = model.NewBoolVar(f'c5_{i}_{j}')\n            c6 = model.NewBoolVar(f'c6_{i}_{j}')\n            \n            model.Add(ex[i] <= x[j]).OnlyEnforceIf(c1)\n            model.Add(ex[j] <= x[i]).OnlyEnforceIf(c2)\n            model.Add(ey[i] <= y[j]).OnlyEnforceIf(c3)\n            model.Add(ey[j] <= y[i]).OnlyEnforceIf(c4)\n            model.Add(ez[i] <= z[j]).OnlyEnforceIf(c5)\n            model.Add(ez[j] <= z[i]).OnlyEnforceIf(c6)\n            \n            model.AddBoolOr([c1, c2, c3, c4, c5, c6]).OnlyEnforceIf(b_both)\n\n    vols = [i[1]*i[2]*i[3] for i in items]\n    model.Maximize(sum(is_placed[i] * vols[i] for i in range(num_items)))\n\n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    solver.parameters.search_branching = cp_model.FIXED_SEARCH\n    var_list = []\n    sorted_idx = sorted(range(num_items), key=lambda idx: vols[idx], reverse=True)\n    for idx in sorted_idx:\n        var_list.append(is_placed[idx])\n        var_list.append(x[idx])\n        var_list.append(y[idx])\n        var_list.append(z[idx])\n    model.AddDecisionStrategy(var_list, cp_model.CHOOSE_FIRST, cp_model.SELECT_MAX_VALUE)\n\n    status = solver.Solve(model)\n\n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        tot_vol = 0\n        placements = []\n        for i in range(num_items):\n            if solver.BooleanValue(is_placed[i]):\n                placements.append([\n                    items[i][0],\n                    [solver.Value(x[i]), solver.Value(y[i]), solver.Value(z[i])],\n                    [solver.Value(dx[i]), solver.Value(dy[i]), solver.Value(dz[i])]\n                ])\n                tot_vol += vols[i]\n                \n        res = {\n            \"placements\": placements, \n            \"volume_utilization\": tot_vol / (L * W * H)\n        }\n        print(json.dumps(res))\n    else:\n        print(\"INFEASIBLE\")\n\nif __name__ == \"__main__\":\n    solve_container_loading()\n"
+}

@@ -1,0 +1,40 @@
+{
+    "problem_id": "vehicle_routing_problem_with_time_window_001",
+    "problem_type": "Vehicle Routing Problem with Time Window",
+    "difficulty": "simple",
+    "problem_description": "A medical supply company needs to coordinate vaccine deliveries to 10 different healthcare facilities using 3 refrigerated trucks. All trucks must start their routes from the company's distribution center located in the city center and must return to the distribution center after completing their deliveries. Each truck can carry up to 50 vaccine packages. All deliveries must be completed within 480 minutes to maintain vaccine efficacy, and each facility has specific time period when they can receive deliveries to match their vaccination schedules. Vehicles travel at an average speed of 30 km/h within the city, and any two locations can be reached directly by traveling in a straight line. The distribution center serves as the coordinate origin (0, 0), with all coordinates measured in kilometers. Facility details: 1. North Clinic at coordinates (10, 15): needs 8 packages, available between 30-90 minutes, requires 15 minutes for unloading; 2. East Pharmacy at coordinates (20, 5): needs 6 packages, available between 60-120 minutes, requires 20 minutes for unloading; 3. West Hospital at coordinates (15, 25): needs 7 packages, available between 45-105 minutes, requires 15 minutes for unloading; 4. South Medical Center at coordinates (30, 10): needs 9 packages, available between 90-150 minutes, requires 25 minutes for unloading; 5. Central Clinic at coordinates (25, 30): needs 5 packages, available between 120-180 minutes, requires 10 minutes for unloading; 6. Downtown Health Center at coordinates (35, 20): needs 10 packages, available between 150-210 minutes, requires 30 minutes for unloading; 7. Suburban Medical Plaza at coordinates (40, 15): needs 4 packages, available between 180-240 minutes, requires 15 minutes for unloading; 8. Riverside Clinic at coordinates (45, 25): needs 6 packages, available between 210-270 minutes, requires 20 minutes for unloading; 9. Uptown Hospital at coordinates (20, 35): needs 8 packages, available between 240-300 minutes, requires 15 minutes for unloading; 10. District Health Center at coordinates (50, 20): needs 7 packages, available between 270-330 minutes, requires 25 minutes for unloading. Each facility must receive exactly one delivery, and no truck can exceed its 50-package capacity. Vehicles must arrive at each facility within its specified time window; if arriving early, the vehicle must wait until the facility's available time. The company needs to determine the optimal routes for each truck to ensure all vaccines are delivered on time while minimizing total travel distance.\n\nPrint the following fields: - routes: for each truck, list the complete route sequence. - total_time: maximum completion time among all trucks. - total_distance: sum of all travel distances. - vehicle_loads: total packages carried by each truck.",
+    "reference_solution": {
+        "routes": [
+            [
+                0,
+                0
+            ],
+            [
+                0,
+                2,
+                4,
+                7,
+                6,
+                8,
+                10,
+                0
+            ],
+            [
+                0,
+                1,
+                3,
+                5,
+                9,
+                0
+            ]
+        ],
+        "total_time": 428,
+        "total_distance": 209.92,
+        "vehicle_loads": [
+            0,
+            42,
+            28
+        ]
+    },
+    "solver_code": "\"\"\"\nvehicle_routing_problem_with_time_window_001 - OR-Tools VRPTW\nFixes: remove hardcoded sort logic, let solver find routes naturally.\n\"\"\"\nimport math, json\nfrom ortools.constraint_solver import routing_enums_pb2, pywrapcp\n\ndef solve():\n    locations = [\n        [0,0],[10,15],[20,5],[15,25],[30,10],[25,30],[35,20],[40,15],[45,25],[20,35],[50,20]\n    ]\n    demands    = [0, 8, 6, 7, 9, 5, 10, 4, 6, 8, 7]\n    time_windows = [(0,480),(30,90),(60,120),(45,105),(90,150),(120,180),(150,210),(180,240),(210,270),(240,300),(270,330)]\n    service_time = [0, 15, 20, 15, 25, 10, 30, 15, 20, 15, 25]\n    num_vehicles = 3\n    vehicle_capacities = [50, 50, 50]\n    speed_kmh = 30.0\n    speed_per_min = speed_kmh / 60.0\n    depot = 0\n    max_horizon = 480\n\n    dist_matrix = [[math.hypot(locations[i][0]-locations[j][0], locations[i][1]-locations[j][1])\n                    for j in range(len(locations))] for i in range(len(locations))]\n\n    manager = pywrapcp.RoutingIndexManager(len(locations), num_vehicles, depot)\n    routing = pywrapcp.RoutingModel(manager)\n\n    def dist_cb(f, t):\n        return int(dist_matrix[manager.IndexToNode(f)][manager.IndexToNode(t)] * 100)\n    di = routing.RegisterTransitCallback(dist_cb)\n    routing.SetArcCostEvaluatorOfAllVehicles(di)\n\n    def time_cb(f, t):\n        fn, tn = manager.IndexToNode(f), manager.IndexToNode(t)\n        return int((dist_matrix[fn][tn] / speed_per_min + service_time[fn]) * 10)\n    ti = routing.RegisterTransitCallback(time_cb)\n\n    def demand_cb(f):\n        return demands[manager.IndexToNode(f)]\n    dci = routing.RegisterUnaryTransitCallback(demand_cb)\n    routing.AddDimensionWithVehicleCapacity(dci, 0, vehicle_capacities, True, 'Capacity')\n\n    routing.AddDimension(ti, int(max_horizon*10), int(max_horizon*10), False, 'Time')\n    time_dim = routing.GetDimensionOrDie('Time')\n    for i, (lo, hi) in enumerate(time_windows):\n        if i == depot: continue\n        idx = manager.NodeToIndex(i)\n        time_dim.CumulVar(idx).SetRange(int(lo*10), int(hi*10))\n\n    params = pywrapcp.DefaultRoutingSearchParameters()\n    params.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC\n    params.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH\n    params.time_limit.seconds = 30\n\n    sol = routing.SolveWithParameters(params)\n    if not sol:\n        print(json.dumps({\"error\": \"no solution\"})); return\n\n    routes = []\n    total_dist = 0.0\n    max_time = 0.0\n    vehicle_loads = []\n\n    for v in range(num_vehicles):\n        idx = routing.Start(v)\n        route = []\n        while not routing.IsEnd(idx):\n            route.append(manager.IndexToNode(idx))\n            idx = sol.Value(routing.NextVar(idx))\n        route.append(depot)\n        routes.append(route)\n\n        cur_t = 0.0; dist = 0.0; load = 0\n        for k in range(len(route)-1):\n            u, nv = route[k], route[k+1]\n            d = dist_matrix[u][nv]; dist += d\n            cur_t += d / speed_per_min\n            if nv != depot:\n                cur_t = max(cur_t, float(time_windows[nv][0]))\n                cur_t += service_time[nv]\n                load += demands[nv]\n        total_dist += dist; vehicle_loads.append(load)\n        if load > 0 and cur_t > max_time: max_time = cur_t\n\n    print(json.dumps({\n        \"routes\": routes,\n        \"total_time\": round(max_time),\n        \"total_distance\": round(total_dist, 2),\n        \"vehicle_loads\": vehicle_loads\n    }))\n\nif __name__ == '__main__': solve()\n"
+}

@@ -1,0 +1,43 @@
+{
+    "problem_id": "pmedcap_002",
+    "problem_type": "Capacitated P-Median Problem",
+    "difficulty": "medium",
+    "problem_description": "An advanced electromagnetic spectrum management infrastructure requires strategic deployment of four quantum-enhanced signal amplification nodes across a heterogeneous geographic topology to establish optimal information transmission networks that minimize cumulative wave propagation distance while adhering to stringent capacity utilization constraints and quantum coherence preservation protocols. The coordinate system employs a standardized geospatial reference framework with all positional measurements expressed in kilometers relative to established grid coordinates. Each amplification node can process a maximum of forty terabytes of quantum-encoded data per diurnal cycle. Every transmission tower exhibits unique bandwidth consumption patterns requiring specialized resource allocation ranging from one to ten terabytes per diurnal cycle, necessitating precise assignment optimization to ensure balanced operational efficiency and quantum entanglement stability. Geospatial distribution characteristics and bandwidth consumption profiles include: Transmission Node Alpha positioned ninety-two kilometers east and eighty kilometers north from grid origin and requires eight terabytes daily; Node Beta located seven kilometers east and sixty-nine kilometers north from grid origin and requires ten terabytes; Node Gamma situated ninety-six kilometers east and seventy-five kilometers north from grid origin and requires ten terabytes; Node Delta positioned forty-eight kilometers east and eighteen kilometers north from grid origin and requires seven terabytes; Node Epsilon located twenty kilometers east and ten kilometers north from grid origin and requires seven terabytes; Node Zeta situated eleven kilometers east and seventy-three kilometers north from grid origin and requires four terabytes; Node Eta positioned twenty-nine kilometers east and fifty-six kilometers north from grid origin and requires six terabytes; Node Theta located seventy kilometers east and fifty-three kilometers north from grid origin and requires two terabytes; Node Iota situated forty-seven kilometers east and ninety-two kilometers north from grid origin and requires seven terabytes; Node Kappa positioned six kilometers east and sixty-two kilometers north from grid origin and requires one terabyte; Node Lambda located seventy-six kilometers east and one kilometer north from grid origin and requires ten terabytes; Node Mu situated eighty-five kilometers east and eleven kilometers north from grid origin and requires five terabytes; Node Nu positioned twenty-four kilometers east and sixty-four kilometers north from grid origin and requires three terabytes; Node Xi located fifty-nine kilometers east and fifty-five kilometers north from grid origin and requires six terabytes; Node Omicron situated thirty-three kilometers east and ninety-five kilometers north from grid origin and requires one terabyte; Node Pi positioned twenty-eight kilometers east and twenty-seven kilometers north from grid origin and requires two terabytes; Node Rho located seventy-three kilometers east and thirty kilometers north from grid origin and requires six terabytes; Node Sigma situated thirty-one kilometers east and forty kilometers north from grid origin and requires three terabytes; Node Tau positioned eighty-eight kilometers east and twenty-nine kilometers north from grid origin and requires two terabytes; Node Upsilon located ninety-one kilometers east and ninety-three kilometers north from grid origin and requires five terabytes; Node Phi situated forty-four kilometers east and sixty-one kilometers north from grid origin and requires three terabytes; Node Chi positioned ninety-seven kilometers east and two kilometers north from grid origin and requires five terabytes; Node Psi located fourteen kilometers east and forty-seven kilometers north from grid origin and requires two terabytes; Node Omega situated thirty-seven kilometers east and seventy-seven kilometers north from grid origin and requires nine terabytes; and Node Alpha Prime positioned fifty-six kilometers east and thirty-six kilometers north from grid origin and requires one terabyte. Each quantum-enhanced amplification node must be co-located with an existing transmission tower and can serve multiple towers as long as the aggregate bandwidth consumption does not exceed forty terabytes per diurnal cycle.\n\nPrint the following fields: - propagation_cost: total transportation distance. - quantum_node_positions: selected facility locations. - spectrum_allocation_matrix: assigned facility for each node.",
+    "reference_solution": {
+        "propagation_cost": 442.52342041641776,
+        "quantum_node_positions": [
+            1,
+            12,
+            13,
+            25
+        ],
+        "spectrum_allocation_matrix": [
+            1,
+            13,
+            1,
+            25,
+            25,
+            13,
+            13,
+            25,
+            1,
+            13,
+            12,
+            12,
+            13,
+            25,
+            13,
+            25,
+            25,
+            25,
+            12,
+            1,
+            13,
+            12,
+            13,
+            13,
+            25
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport math\nimport json\n\nN = 25\nM = 25\nnum_amplifiers = 4\ncapacity = 40\n\nnodes_data = [\n    (92, 80, 8),\n    (7, 69, 10),\n    (96, 75, 10),\n    (48, 18, 7),\n    (20, 10, 7),\n    (11, 73, 4),\n    (29, 56, 6),\n    (70, 53, 2),\n    (47, 92, 7),\n    (6, 62, 1),\n    (76, 1, 10),\n    (85, 11, 5),\n    (24, 64, 3),\n    (59, 55, 6),\n    (33, 95, 1),\n    (28, 27, 2),\n    (73, 30, 6),\n    (31, 40, 3),\n    (88, 29, 2),\n    (91, 93, 5),\n    (44, 61, 3),\n    (97, 2, 5),\n    (14, 47, 2),\n    (37, 77, 9),\n    (56, 36, 1)\n]\n\neast = [data[0] for data in nodes_data]\nnorth = [data[1] for data in nodes_data]\ndemand = [data[2] for data in nodes_data]\n\nsolver = pywraplp.Solver.CreateSolver(\"SCIP\")\nif solver is None:\n    print(\"SCIP solver not available\")\n    exit()\n\nINF = solver.infinity()\n\ny = [solver.BoolVar(f\"y[{j}]\") for j in range(M)]\n\nx = [[solver.BoolVar(f\"x[{i},{j}]\") for j in range(M)] for i in range(N)]\n\ndistance_matrix = [[0.0 for _ in range(M)] for _ in range(N)]\nfor i in range(N):\n    for j in range(M):\n        dx = east[i] - east[j]\n        dy = north[i] - north[j]\n        distance_matrix[i][j] = math.sqrt(dx*dx + dy*dy)\n\nsolver.Add(sum(y[j] for j in range(M)) == num_amplifiers)\n\nfor i in range(N):\n    solver.Add(sum(x[i][j] for j in range(M)) == 1)\n\nfor i in range(N):\n    for j in range(M):\n        solver.Add(x[i][j] <= y[j])\n\nfor j in range(M):\n    solver.Add(sum(demand[i] * x[i][j] for i in range(N)) <= capacity * y[j])\n\nobjective = solver.Sum(distance_matrix[i][j] * x[i][j] for i in range(N) for j in range(M))\nsolver.Minimize(objective)\n\nstatus = solver.Solve()\n\nif status == pywraplp.Solver.OPTIMAL:\n    propagation_cost = solver.Objective().Value()\n    \n    quantum_node_positions = []\n    for j in range(M):\n        if y[j].solution_value() > 0.5:\n            quantum_node_positions.append(j + 1)\n    \n    spectrum_allocation_matrix = []\n    for i in range(N):\n        for j in range(M):\n            if x[i][j].solution_value() > 0.5:\n                spectrum_allocation_matrix.append(j + 1)\n                break\n    \n    print(json.dumps({\n        \"propagation_cost\": propagation_cost,\n        \"quantum_node_positions\": quantum_node_positions,\n        \"spectrum_allocation_matrix\": spectrum_allocation_matrix\n    }))\nelse:\n    print(json.dumps({\n        \"propagation_cost\": 0.0,\n        \"quantum_node_positions\": [],\n        \"spectrum_allocation_matrix\": []\n    }))"
+}

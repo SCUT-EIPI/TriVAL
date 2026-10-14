@@ -1,0 +1,55 @@
+{
+    "problem_id": "pmed_uncap_001",
+    "problem_type": "Uncapacitated P-Median Problem",
+    "difficulty": "simple",
+    "problem_description": "An advanced quantum communication infrastructure optimization framework requires strategic deployment of two entanglement synchronization nodes across a five-point topological network to establish optimal information propagation pathways that minimize cumulative quantum decoherence expenditure while adhering to strict non-locality constraints and quantum coherence preservation protocols. The network topology employs a sophisticated quantum state transfer matrix where each connection represents a bidirectional quantum tunnel with associated decoherence resistance coefficients. The objective is to identify optimal node placement configurations that minimize the aggregate quantum information loss across all network segments while maintaining entanglement fidelity above established threshold parameters. Quantum connection characteristics and decoherence coefficients include: Quantum pathway Alpha connecting node one and node two exhibits decoherence coefficient ten; pathway Beta linking node one and node three demonstrates coefficient five; pathway Gamma connecting node one and node four shows coefficient seven; pathway Delta linking node one and node five reveals coefficient eight; pathway Epsilon connecting node two and node three exhibits coefficient two; pathway Zeta linking node two and node four demonstrates coefficient one; pathway Eta connecting node two and node five shows coefficient six; pathway Theta linking node three and node four exhibits coefficient nine; pathway Iota connecting node three and node five demonstrates coefficient two; and pathway Kappa linking node four and node five reveals coefficient four. Each network node must be quantum-entangled with exactly one synchronization node, and the quantum information transfer cost from any node to its assigned synchronization node represents the minimum achievable decoherence expenditure through available quantum tunneling pathways utilizing optimal state transfer protocols.\n\nPrint the following fields: - synchronization_nodes: selected facility locations. - total_decoherence_expenditure: total distance cost. - quantum_entanglement_assignments: for each node, list assignment with facility, pathway, cost.",
+    "reference_solution": {
+        "synchronization_nodes": [
+            1,
+            3
+        ],
+        "total_decoherence_expenditure": 7,
+        "quantum_entanglement_assignments": [
+            [
+                1,
+                [
+                    1
+                ],
+                0
+            ],
+            [
+                3,
+                [
+                    2,
+                    3
+                ],
+                2
+            ],
+            [
+                3,
+                [
+                    3
+                ],
+                0
+            ],
+            [
+                3,
+                [
+                    4,
+                    2,
+                    3
+                ],
+                3
+            ],
+            [
+                3,
+                [
+                    5,
+                    3
+                ],
+                2
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef compute_shortest_paths():\n    \"\"\"Compute all-pairs shortest paths on the undirected graph.\"\"\"\n    edges = {\n        (1, 2): 10, (1, 3): 5, (1, 4): 7, (1, 5): 8,\n        (2, 3): 2, (2, 4): 1, (2, 5): 6,\n        (3, 4): 9, (3, 5): 2,\n        (4, 5): 4\n    }\n    \n    graph = {}\n    for (u, v), w in edges.items():\n        graph.setdefault(u, {})[v] = w\n        graph.setdefault(v, {})[u] = w\n    \n    nodes = list(range(1, 6))\n    \n    INF = float('inf')\n    dist = {i: {j: INF for j in nodes} for i in nodes}\n    \n    for i in nodes:\n        dist[i][i] = 0\n    for (u, v), w in edges.items():\n        dist[u][v] = w\n        dist[v][u] = w\n    \n    for k in nodes:\n        for i in nodes:\n            for j in nodes:\n                if dist[i][k] + dist[k][j] < dist[i][j]:\n                    dist[i][j] = dist[i][k] + dist[k][j]\n    \n    return dist\n\ndef main():\n    N = list(range(1, 6))\n    p = 2\n    \n    c = compute_shortest_paths()\n    \n    model = cp_model.CpModel()\n    \n    y = {i: model.NewBoolVar(f\"y_{i}\") for i in N}\n    \n    x = {}\n    for i in N:\n        for j in N:\n            x[(i, j)] = model.NewBoolVar(f\"x_{i}_{j}\")\n    \n    model.Add(sum(y[i] for i in N) == p)\n    \n    for i in N:\n        for j in N:\n            model.Add(x[(i, j)] <= y[j])\n    \n    for i in N:\n        model.Add(sum(x[(i, j)] for j in N) == 1)\n    \n    objective_terms = []\n    for i in N:\n        for j in N:\n            objective_terms.append(int(c[i][j]) * x[(i, j)])\n    \n    model.Minimize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        synchronization_nodes = [i for i in N if solver.Value(y[i]) == 1]\n        total_decoherence_expenditure = int(solver.ObjectiveValue())\n        \n        def get_path(i, j):\n            if i == j:\n                return [i]\n            for k in N:\n                if k != i and k != j and abs(c[i][j] - (c[i][k] + c[k][j])) < 1e-5:\n                    left = get_path(i, k)\n                    right = get_path(k, j)\n                    return left + right[1:]\n            return [i, j]\n        \n        quantum_entanglement_assignments = []\n        for i in N:\n            for j in N:\n                if solver.Value(x[(i, j)]) == 1:\n                    route = get_path(i, j)\n                    cost = int(c[i][j])\n                    quantum_entanglement_assignments.append([j, route, cost])\n                    break\n        \n        print(json.dumps({\n            \"synchronization_nodes\": synchronization_nodes,\n            \"total_decoherence_expenditure\": total_decoherence_expenditure,\n            \"quantum_entanglement_assignments\": quantum_entanglement_assignments\n        }))\n    else:\n        print(json.dumps({\n            \"synchronization_nodes\": [],\n            \"total_decoherence_expenditure\": 0,\n            \"quantum_entanglement_assignments\": []\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

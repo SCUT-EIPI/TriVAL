@@ -1,0 +1,64 @@
+{
+    "problem_id": "packing_unequal_circles_002",
+    "problem_type": "Packing Unequal Circles",
+    "difficulty": "medium",
+    "problem_description": "In an urban spatial optimization project, authorities are redeveloping a circular green infrastructure zone with a 25-meter effective radius, positioned at coordinates (25, 25) in the central business district. The project involves deploying ten distinct urban service modules, each with specific spatial requirements: module 1 needs a 3-meter area for a pediatric recreational zone using evidence-based play therapy; module 2 requires a 7-meter space for a multi-disciplinary athletic facility supporting adaptive sports and community wellness; module 3 needs a 2-meter area for a mindfulness space incorporating biophilic design and stress reduction; module 4 requires a 12-meter area for a performing arts amphitheater with acoustic optimization; module 5 allocates a 5-meter zone for a canine behavioral facility using positive reinforcement protocols; module 6 needs an 11-meter footprint for a civic engagement platform supporting community events and participatory governance; module 7 requires a 4-meter area for an outdoor therapeutic fitness zone with evidence-based exercise programming; module 8 specifies an 8-meter space for a communal dining facility supporting diverse culinary traditions; module 9 needs a 6-meter area for an extreme sports zone with advanced safety engineering; and module 10 requires a 10-meter footprint for an ethnobotanical garden implementing native species propagation. Each module must be completely contained within the circular boundary and maintain adequate buffer zones to prevent functional interference and ensure optimal user experience. The planners seek to determine the maximum number of modules that can be deployed while maintaining ecological capacity and urban sustainability standards.\n\nPrint the following fields: - deployed: deployment status for each module. - locations: for each module, list coordinates with x, y. - num_deployed: total number of deployed modules.",
+    "reference_solution": {
+        "deployed": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            1
+        ],
+        "locations": [
+            [
+                5,
+                29
+            ],
+            [
+                39,
+                14
+            ],
+            [
+                20,
+                27
+            ],
+            [
+                34,
+                33
+            ],
+            [
+                27,
+                17
+            ],
+            [
+                -1,
+                -1
+            ],
+            [
+                22,
+                45
+            ],
+            [
+                14,
+                36
+            ],
+            [
+                25,
+                6
+            ],
+            [
+                12,
+                18
+            ]
+        ],
+        "num_deployed": 9
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef main():\n    R = 25.0\n    cx = 25.0\n    cy = 25.0\n    r = [3, 7, 2, 12, 5, 11, 4, 8, 6, 10]\n    n = len(r)\n    \n    model = cp_model.CpModel()\n    \n    deploy = [model.NewBoolVar(f\"deploy_{i}\") for i in range(n)]\n    \n    max_bound = int(math.ceil(R + max(r)))\n    x = [model.NewIntVar(0, 2*max_bound, f\"x_{i}\") for i in range(n)]\n    y = [model.NewIntVar(0, 2*max_bound, f\"y_{i}\") for i in range(n)]\n    \n    num_deployed = model.NewIntVar(0, n, \"num_deployed\")\n    model.Add(num_deployed == sum(deploy))\n    \n    for i in range(n):\n        dx = model.NewIntVar(-max_bound, max_bound, f\"dx_{i}\")\n        dy = model.NewIntVar(-max_bound, max_bound, f\"dy_{i}\")\n        \n        model.Add(dx == x[i] - int(cx))\n        model.Add(dy == y[i] - int(cy))\n        \n        dx_sq = model.NewIntVar(0, max_bound*max_bound, f\"dx_sq_{i}\")\n        dy_sq = model.NewIntVar(0, max_bound*max_bound, f\"dy_sq_{i}\")\n        \n        model.AddMultiplicationEquality(dx_sq, [dx, dx])\n        model.AddMultiplicationEquality(dy_sq, [dy, dy])\n        \n        dist_sq = model.NewIntVar(0, max_bound*max_bound*2, f\"dist_sq_{i}\")\n        model.Add(dist_sq == dx_sq + dy_sq)\n        \n        rhs = int((R - r[i]) ** 2)\n        \n        model.Add(dist_sq <= rhs).OnlyEnforceIf(deploy[i])\n    \n    for i in range(n):\n        for j in range(i + 1, n):\n            dx_ij = model.NewIntVar(-2*max_bound, 2*max_bound, f\"dx_{i}_{j}\")\n            dy_ij = model.NewIntVar(-2*max_bound, 2*max_bound, f\"dy_{i}_{j}\")\n            \n            model.Add(dx_ij == x[i] - x[j])\n            model.Add(dy_ij == y[i] - y[j])\n            \n            dx_sq_ij = model.NewIntVar(0, 4*max_bound*max_bound, f\"dx_sq_{i}_{j}\")\n            dy_sq_ij = model.NewIntVar(0, 4*max_bound*max_bound, f\"dy_sq_{i}_{j}\")\n            \n            model.AddMultiplicationEquality(dx_sq_ij, [dx_ij, dx_ij])\n            model.AddMultiplicationEquality(dy_sq_ij, [dy_ij, dy_ij])\n            \n            dist_sq_ij = model.NewIntVar(0, 8*max_bound*max_bound, f\"dist_sq_{i}_{j}\")\n            model.Add(dist_sq_ij == dx_sq_ij + dy_sq_ij)\n            \n            rhs_ij = int((r[i] + r[j]) ** 2)\n            \n            both_deployed = model.NewBoolVar(f\"both_deployed_{i}_{j}\")\n            model.AddBoolAnd([deploy[i], deploy[j]]).OnlyEnforceIf(both_deployed)\n            model.AddBoolOr([deploy[i].Not(), deploy[j].Not()]).OnlyEnforceIf(both_deployed.Not())\n            \n            model.Add(dist_sq_ij >= rhs_ij).OnlyEnforceIf(both_deployed)\n    \n    model.Maximize(num_deployed)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        deployed_list = [int(solver.Value(deploy[i])) for i in range(n)]\n        locations_list = []\n        for i in range(n):\n            if solver.Value(deploy[i]) == 1:\n                locations_list.append([solver.Value(x[i]), solver.Value(y[i])])\n            else:\n                locations_list.append([-1, -1])\n        result = {\n            \"deployed\": deployed_list,\n            \"locations\": locations_list,\n            \"num_deployed\": int(solver.Value(num_deployed))\n        }\n    else:\n        result = {\n            \"deployed\": [0]*n,\n            \"locations\": [[-1, -1] for _ in range(n)],\n            \"num_deployed\": 0\n        }\n    print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

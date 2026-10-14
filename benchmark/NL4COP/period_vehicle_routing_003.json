@@ -1,0 +1,90 @@
+{
+    "problem_id": "period_vehicle_routing_003",
+    "problem_type": "Period Vehicle Routing Problem",
+    "difficulty": "hard",
+    "problem_description": "A school meal delivery service operates from a central kitchen at coordinates (30.0, 40.0) and needs to plan efficient routes over a 5-day period. Every day has 2 delivery vans, each van can carry up to 160.0 kilograms of meals per day. The service delivers to 5 schools with different meal requirements and delivery preferences. Each school must be assigned exactly one delivery schedule, and daily routes must be planned to minimize total travel distance while ensuring all routes start and end at the central kitchen. School Alpha at (37.0, 52.0) needs 7.0 kg meals and can be delivered either on Monday only, Tuesday only, Wednesday only, Thursday only, or Friday only; School Beta at (49.0, 49.0) needs 30.0 kg meals and requires delivery every day; School Gamma at (52.0, 64.0) needs 16.0 kg meals and can be delivered either on Monday and Wednesday, Tuesday and Thursday, or Wednesday and Friday; School Delta at (20.0, 26.0) needs 9.0 kg meals and can be delivered either on Monday only, Tuesday only, Wednesday only, Thursday only, or Friday only; School Epsilon at (40.0, 30.0) needs 21.0 kg meals and can be delivered either on Monday and Wednesday, Tuesday and Thursday, or Wednesday and Friday.\n\nPrint the following fields: - selected_temporal_engagement_schedules: delivery schedule for each school. - autonomous_vehicle_trajectories: daily routes for each vehicle. - total_spatial_displacement_expenditure: total travel distance.",
+    "reference_solution": {
+        "selected_temporal_engagement_schedules": [
+            [
+                1,
+                0,
+                0,
+                0,
+                0
+            ],
+            [
+                1,
+                1,
+                1,
+                1,
+                1
+            ],
+            [
+                1,
+                0,
+                1,
+                0,
+                0
+            ],
+            [
+                0,
+                1,
+                0,
+                0,
+                0
+            ],
+            [
+                0,
+                1,
+                0,
+                1,
+                0
+            ]
+        ],
+        "autonomous_vehicle_trajectories": [
+            [
+                [
+                    0,
+                    2,
+                    3,
+                    1,
+                    0
+                ]
+            ],
+            [
+                [
+                    0,
+                    2,
+                    5,
+                    4,
+                    0
+                ]
+            ],
+            [
+                [
+                    0,
+                    2,
+                    3,
+                    0
+                ]
+            ],
+            [
+                [
+                    0,
+                    5,
+                    2,
+                    0
+                ]
+            ],
+            [
+                [
+                    0,
+                    2,
+                    0
+                ]
+            ]
+        ],
+        "total_spatial_displacement_expenditure": 316.186803
+    },
+    "solver_code": "import math\nfrom ortools.sat.python import cp_model\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']\n    schools = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon']\n    vehicles = [1, 2]\n    \n    kitchen_coords = (30.0, 40.0)\n    \n    school_coords = {\n        'Alpha': (37.0, 52.0),\n        'Beta': (49.0, 49.0),\n        'Gamma': (52.0, 64.0),\n        'Delta': (20.0, 26.0),\n        'Epsilon': (40.0, 30.0)\n    }\n    \n    meal_req = {\n        'Alpha': 7.0,\n        'Beta': 30.0,\n        'Gamma': 16.0,\n        'Delta': 9.0,\n        'Epsilon': 21.0\n    }\n    \n    vehicle_capacity = 160.0\n    \n    schedule_patterns = {\n        'Alpha': [['Mon'], ['Tue'], ['Wed'], ['Thu'], ['Fri']],\n        'Beta': [['Mon', 'Tue', 'Wed', 'Thu', 'Fri']],\n        'Gamma': [['Mon', 'Wed'], ['Tue', 'Thu'], ['Wed', 'Fri']],\n        'Delta': [['Mon'], ['Tue'], ['Wed'], ['Thu'], ['Fri']],\n        'Epsilon': [['Mon', 'Wed'], ['Tue', 'Thu'], ['Wed', 'Fri']]\n    }\n    \n    locations = ['C'] + schools\n    \n    def euclidean_distance(coord1, coord2):\n        return math.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)\n    \n    def get_coords(loc):\n        if loc == 'C':\n            return kitchen_coords\n        else:\n            return school_coords[loc]\n    \n    distance = {}\n    for i in locations:\n        for j in locations:\n            if i == j:\n                distance[(i, j)] = 0.0\n            else:\n                coord_i = get_coords(i)\n                coord_j = get_coords(j)\n                distance[(i, j)] = euclidean_distance(coord_i, coord_j)\n    \n    schedule_assignment = {}\n    for s in schools:\n        num_patterns = len(schedule_patterns[s])\n        schedule_assignment[s] = [model.NewBoolVar(f\"schedule_{s}_{k}\") for k in range(num_patterns)]\n    \n    delivery_on_day = {}\n    for s in schools:\n        delivery_on_day[s] = {}\n        for d in days:\n            delivery_on_day[s][d] = model.NewBoolVar(f\"delivery_{s}_{d}\")\n    \n    assigned_to_vehicle = {}\n    for s in schools:\n        assigned_to_vehicle[s] = {}\n        for d in days:\n            assigned_to_vehicle[s][d] = {}\n            for v in vehicles:\n                assigned_to_vehicle[s][d][v] = model.NewBoolVar(f\"assign_{s}_{d}_{v}\")\n    \n    travel = {}\n    for d in days:\n        travel[d] = {}\n        for v in vehicles:\n            travel[d][v] = {}\n            for i in locations:\n                travel[d][v][i] = {}\n                for j in locations:\n                    if i != j:\n                        travel[d][v][i][j] = model.NewBoolVar(f\"travel_{d}_{v}_{i}_{j}\")\n    \n    position = {}\n    for d in days:\n        position[d] = {}\n        for v in vehicles:\n            position[d][v] = {}\n            for i in locations:\n                position[d][v][i] = model.NewIntVar(0, len(schools), f\"pos_{d}_{v}_{i}\")\n    \n    for s in schools:\n        model.AddExactlyOne(schedule_assignment[s])\n    \n    for s in schools:\n        for d in days:\n            patterns_with_d = []\n            for k, pattern in enumerate(schedule_patterns[s]):\n                if d in pattern:\n                    patterns_with_d.append(schedule_assignment[s][k])\n            \n            if patterns_with_d:\n                model.Add(delivery_on_day[s][d] == sum(patterns_with_d))\n            else:\n                model.Add(delivery_on_day[s][d] == 0)\n    \n    for s in schools:\n        for d in days:\n            vehicle_vars = [assigned_to_vehicle[s][d][v] for v in vehicles]\n            model.Add(sum(vehicle_vars) == delivery_on_day[s][d])\n    \n    scaled_meal_req = {s: int(math.ceil(meal_req[s])) for s in schools}\n    scaled_capacity = int(math.floor(vehicle_capacity))\n    \n    for d in days:\n        for v in vehicles:\n            capacity_expr = []\n            for s in schools:\n                capacity_expr.append(scaled_meal_req[s] * assigned_to_vehicle[s][d][v])\n            model.Add(sum(capacity_expr) <= scaled_capacity)\n    \n    for d in days:\n        for v in vehicles:\n            start_expr = []\n            for j in locations:\n                if j != 'C':\n                    start_expr.append(travel[d][v]['C'][j])\n            vehicle_used = model.NewBoolVar(f'veh_used_{d}_{v}')\n            model.Add(sum(assigned_to_vehicle[s][d][v] for s in schools) > 0).OnlyEnforceIf(vehicle_used)\n            model.Add(sum(assigned_to_vehicle[s][d][v] for s in schools) == 0).OnlyEnforceIf(vehicle_used.Not())\n            \n            model.Add(sum(start_expr) == vehicle_used)\n            \n            end_expr = []\n            for i in locations:\n                if i != 'C':\n                    end_expr.append(travel[d][v][i]['C'])\n            model.Add(sum(end_expr) == vehicle_used)\n    \n    for d in days:\n        for v in vehicles:\n            for s in schools:\n                incoming_expr = []\n                for i in locations:\n                    if i != s:\n                        incoming_expr.append(travel[d][v][i][s])\n                model.Add(sum(incoming_expr) == assigned_to_vehicle[s][d][v])\n    \n    for d in days:\n        for v in vehicles:\n            for s in schools:\n                outgoing_expr = []\n                for j in locations:\n                    if j != s:\n                        outgoing_expr.append(travel[d][v][s][j])\n                model.Add(sum(outgoing_expr) == assigned_to_vehicle[s][d][v])\n    \n    num_schools = len(schools)\n    for d in days:\n        for v in vehicles:\n            model.Add(position[d][v]['C'] == 0)\n            for s in schools:\n                model.Add(position[d][v][s] >= assigned_to_vehicle[s][d][v])\n                model.Add(position[d][v][s] <= num_schools * assigned_to_vehicle[s][d][v])\n                for t in schools:\n                    if s != t:\n                        mtz_expr = position[d][v][s] - position[d][v][t] + (num_schools + 1) * travel[d][v][s][t]\n                        model.Add(mtz_expr <= num_schools)\n    \n    objective_terms = []\n    big_multiplier = 1000000\n    for d in days:\n        for v in vehicles:\n            for i in locations:\n                for j in locations:\n                    if i != j:\n                        scaled_distance = int(distance[(i, j)] * big_multiplier)\n                        objective_terms.append(scaled_distance * travel[d][v][i][j])\n    \n    model.Minimize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300.0\n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        schedules_output = []\n        for s in schools:\n            sched = [0, 0, 0, 0, 0]\n            for d_idx, d in enumerate(days):\n                if solver.Value(delivery_on_day[s][d]) == 1:\n                    sched[d_idx] = 1\n            schedules_output.append(sched)\n        \n        trajectories = []\n        school_to_idx = {s: i+1 for i, s in enumerate(schools)}\n        \n        for d in days:\n            daily_trajectories = []\n            for v in vehicles:\n                route = []\n                current = 'C'\n                visited = set()\n                \n                while True:\n                    found_next = False\n                    for j in locations:\n                        if j != current and solver.Value(travel[d][v][current][j]) == 1:\n                            if j == 'C' and current != 'C':\n                                route.append(0)\n                                found_next = True\n                                break\n                            elif j not in visited:\n                                if current == 'C':\n                                    route.append(0)\n                                route.append(school_to_idx[j])\n                                current = j\n                                visited.add(j)\n                                found_next = True\n                                break\n                    if not found_next or (route and route[-1] == 0):\n                        break\n                \n                if len(route) > 1:\n                    daily_trajectories.append(route)\n            trajectories.append(daily_trajectories)\n        \n        total_distance = solver.ObjectiveValue() / float(big_multiplier)\n        \n        res = {\n            \"selected_temporal_engagement_schedules\": schedules_output,\n            \"autonomous_vehicle_trajectories\": trajectories,\n            \"total_spatial_displacement_expenditure\": total_distance\n        }\n        print(json.dumps(res, indent=2))\n        \n    else:\n        print(\"INFEASIBLE\")\n\nif __name__ == \"__main__\":\n    main()\n"
+}

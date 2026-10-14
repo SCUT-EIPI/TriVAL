@@ -1,0 +1,42 @@
+{
+    "problem_id": "constrained_non_guillotine_cutting_002",
+    "problem_type": "Constrained Non-Guillotine Cutting Problem",
+    "difficulty": "medium",
+    "problem_description": "Emma is furnishing her new 10x10 meter studio apartment and needs to arrange different furniture pieces to maximize living comfort and functionality. She has the following furniture items available: 1. Furniture Type 1 (Large bookshelf): 3x3 meters, comfort value 35 points (must include exactly 1, no more and no less) 2. Furniture Type 2 (Long sofa): 4x2 meters, comfort value 40 points (optional, up to 1 can be placed) 3. Furniture Type 3 (Wide media console): 2x2 meters, comfort value 27 points (optional, up to 1 can be placed) 4. Furniture Type 4 (Medium dining table): 3x2 meters, comfort value 23 points (optional, up to 1 can be placed) 5. Furniture Type 5 (Tall storage cabinet): 2x3 meters, comfort value 43 points (optional, up to 1 can be placed) Each furniture piece can be placed either in its original orientation or rotated by 90 degrees. All furniture must be placed completely within the apartment boundaries and cannot overlap with each other. Emma wants to know how to arrange these furniture pieces to achieve the maximum total comfort value while making the best use of her available space.\n\nPrint the following fields: - total_comfort_value: total comfort value of placed furniture. - placements: for each furniture, list placements with piece type, x, y, rotation.",
+    "reference_solution": {
+        "total_comfort_value": 168,
+        "placements": [
+            [
+                1,
+                0,
+                7,
+                0
+            ],
+            [
+                2,
+                3,
+                6,
+                0
+            ],
+            [
+                3,
+                0,
+                4,
+                0
+            ],
+            [
+                4,
+                0,
+                2,
+                0
+            ],
+            [
+                5,
+                0,
+                0,
+                1
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef main():\n    apartment_width = 10.0\n    apartment_height = 10.0\n    furniture_types = [1, 2, 3, 4, 5]\n    \n    width = {1: 3.0, 2: 4.0, 3: 2.0, 4: 3.0, 5: 2.0}\n    height = {1: 3.0, 2: 2.0, 3: 2.0, 4: 2.0, 5: 3.0}\n    comfort = {1: 35.0, 2: 40.0, 3: 27.0, 4: 23.0, 5: 43.0}\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    INF = solver.infinity()\n    \n    solver.SetTimeLimit(30000)\n    solver.SetNumThreads(1)\n    \n    place = {}\n    x = {}\n    y = {}\n    rotate = {}\n    eff_width = {}\n    eff_height = {}\n    \n    for i in furniture_types:\n        place[i] = solver.BoolVar(f\"place_{i}\")\n        x[i] = solver.NumVar(0.0, apartment_width, f\"x_{i}\")\n        y[i] = solver.NumVar(0.0, apartment_height, f\"y_{i}\")\n        rotate[i] = solver.BoolVar(f\"rotate_{i}\")\n        eff_width[i] = solver.NumVar(0.0, apartment_width, f\"eff_width_{i}\")\n        eff_height[i] = solver.NumVar(0.0, apartment_height, f\"eff_height_{i}\")\n    \n    solver.Add(place[1] == 1)\n    \n    for i in furniture_types:\n        M = max(width[i], height[i]) * 2\n        \n        solver.Add(eff_width[i] <= width[i] + (height[i] - width[i]) * rotate[i] + M * (1 - place[i]))\n        solver.Add(eff_width[i] >= width[i] + (height[i] - width[i]) * rotate[i] - M * (1 - place[i]))\n        \n        solver.Add(eff_width[i] <= M * place[i])\n        solver.Add(eff_width[i] >= -M * place[i])\n    \n    for i in furniture_types:\n        M = max(width[i], height[i]) * 2\n        \n        solver.Add(eff_height[i] <= height[i] + (width[i] - height[i]) * rotate[i] + M * (1 - place[i]))\n        solver.Add(eff_height[i] >= height[i] + (width[i] - height[i]) * rotate[i] - M * (1 - place[i]))\n        \n        solver.Add(eff_height[i] <= M * place[i])\n        solver.Add(eff_height[i] >= -M * place[i])\n    \n    for i in furniture_types:\n        M_x = apartment_width * 2\n        solver.Add(x[i] + eff_width[i] <= apartment_width + M_x * (1 - place[i]))\n        \n        M_y = apartment_height * 2\n        solver.Add(y[i] + eff_height[i] <= apartment_height + M_y * (1 - place[i]))\n    \n    for i in furniture_types:\n        solver.Add(x[i] <= apartment_width * place[i])\n        solver.Add(y[i] <= apartment_height * place[i])\n        solver.Add(rotate[i] <= place[i])\n    \n    for i in furniture_types:\n        for j in furniture_types:\n            if i < j:\n                d1 = solver.BoolVar(f\"d1_{i}_{j}\")\n                d2 = solver.BoolVar(f\"d2_{i}_{j}\")\n                d3 = solver.BoolVar(f\"d3_{i}_{j}\")\n                d4 = solver.BoolVar(f\"d4_{i}_{j}\")\n                d5 = solver.BoolVar(f\"d5_{i}_{j}\")\n                \n                solver.Add(d1 + d2 + d3 + d4 + d5 >= 1)\n                \n                M = apartment_width + apartment_height\n                \n                solver.Add(x[i] + eff_width[i] <= x[j] + M * (1 - d1))\n                \n                solver.Add(x[j] + eff_width[j] <= x[i] + M * (1 - d2))\n                \n                solver.Add(y[i] + eff_height[i] <= y[j] + M * (1 - d3))\n                \n                solver.Add(y[j] + eff_height[j] <= y[i] + M * (1 - d4))\n                \n                solver.Add(place[i] + place[j] <= 1 + 2 * (1 - d5))\n    \n    objective = solver.Objective()\n    for i in furniture_types:\n        objective.SetCoefficient(place[i], comfort[i])\n    objective.SetMaximization()\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        total_comfort_value = int(sum(place[i].solution_value() * comfort[i] for i in furniture_types))\n        placements = []\n        for i in furniture_types:\n            if place[i].solution_value() > 0.5:\n                placements.append([\n                    i,\n                    int(round(x[i].solution_value())),\n                    int(round(y[i].solution_value())),\n                    int(round(rotate[i].solution_value()))\n                ])\n        print(json.dumps({\n            \"total_comfort_value\": total_comfort_value,\n            \"placements\": placements\n        }))\n    else:\n        print(json.dumps({\n            \"total_comfort_value\": 0,\n            \"placements\": []\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

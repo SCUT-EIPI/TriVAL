@@ -1,0 +1,102 @@
+{
+    "problem_id": "unconstrained_non_guillotine_cutting_003",
+    "problem_type": "Unconstrained Non-Guillotine Cutting Problem",
+    "difficulty": "hard",
+    "problem_description": "An advanced textile manufacturing enterprise is confronting a sophisticated spatial allocation optimization challenge involving non-sequential fabric arrangement on a rectangular cutting table measuring 25 by 18 centimeters. This non-guillotine cutting paradigm enables fabric pieces to be positioned arbitrarily throughout the cutting table without conforming to any predetermined cutting trajectory or sequential arrangement protocol. The manufacturing inventory encompasses five distinct fabric categories: Category 1 fabrics with length 7 centimeters and width 5 centimeters, valuation of 35 hundred dollars, and maximum allowable quantity of 3 pieces; Category 2 fabrics with length 6 centimeters and width 4 centimeters, valuation of 24 hundred dollars, and maximum allowable quantity of 3 pieces; Category 3 fabrics with length 5 centimeters and width 5 centimeters, valuation of 25 hundred dollars, and maximum allowable quantity of 3 pieces; Category 4 fabrics with length 8 centimeters and width 3 centimeters, valuation of 24 hundred dollars, and maximum allowable quantity of 3 pieces; Category 5 fabrics with length 4 centimeters and width 6 centimeters, valuation of 24 hundred dollars, and maximum allowable quantity of 3 pieces. Each fabric permits 90-degree rotational adjustment and can be positioned at any coordinate within the cutting table boundaries, provided that spatial overlapping is avoided and complete containment within the perimeter is maintained. Manufacturing engineers must determine how to arrange the fabric pieces to achieve maximum total value, with no constraints on placement order or cutting sequence.\n\nPrint the following fields: - placements: for each piece, list placement with type, x, y, rotation. - total_value: total value of placed pieces.",
+    "reference_solution": {
+        "placements": [
+            [
+                0,
+                5,
+                13,
+                0
+            ],
+            [
+                0,
+                18,
+                13,
+                0
+            ],
+            [
+                0,
+                3,
+                6,
+                1
+            ],
+            [
+                1,
+                8,
+                8,
+                0
+            ],
+            [
+                1,
+                14,
+                8,
+                1
+            ],
+            [
+                1,
+                10,
+                0,
+                1
+            ],
+            [
+                2,
+                18,
+                8,
+                0
+            ],
+            [
+                2,
+                0,
+                13,
+                0
+            ],
+            [
+                2,
+                17,
+                3,
+                0
+            ],
+            [
+                3,
+                14,
+                0,
+                1
+            ],
+            [
+                3,
+                17,
+                0,
+                0
+            ],
+            [
+                3,
+                0,
+                4,
+                1
+            ],
+            [
+                4,
+                12,
+                14,
+                1
+            ],
+            [
+                4,
+                0,
+                0,
+                1
+            ],
+            [
+                4,
+                6,
+                0,
+                0
+            ]
+        ],
+        "total_value": 396
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_cutting_problem():\n    table_length = 25\n    table_width = 18\n    \n    categories = [1, 2, 3, 4, 5]\n    \n    length = {1: 7, 2: 6, 3: 5, 4: 8, 5: 4}\n    width = {1: 5, 2: 4, 3: 5, 4: 3, 5: 6}\n    value = {1: 35, 2: 24, 3: 25, 4: 24, 5: 24}\n    max_qty = {1: 3, 2: 3, 3: 3, 4: 3, 5: 3}\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    INF = solver.infinity()\n    \n    use = {}\n    x = {}\n    y = {}\n    rot = {}\n    \n    for c in categories:\n        use[c] = {}\n        x[c] = {}\n        y[c] = {}\n        rot[c] = {}\n        for k in range(1, max_qty[c] + 1):\n            use[c][k] = solver.BoolVar(f\"use_{c}_{k}\")\n            x[c][k] = solver.NumVar(0, table_length, f\"x_{c}_{k}\")\n            y[c][k] = solver.NumVar(0, table_width, f\"y_{c}_{k}\")\n            rot[c][k] = solver.BoolVar(f\"rot_{c}_{k}\")\n    \n    pieces = []\n    for c in categories:\n        for k in range(1, max_qty[c] + 1):\n            pieces.append((c, k))\n    \n    sep_left = {}\n    sep_right = {}\n    sep_below = {}\n    sep_above = {}\n    \n    for i in range(len(pieces)):\n        c1, k1 = pieces[i]\n        for j in range(i + 1, len(pieces)):\n            c2, k2 = pieces[j]\n            sep_left[(c1, k1, c2, k2)] = solver.BoolVar(f\"sep_left_{c1}_{k1}_{c2}_{k2}\")\n            sep_right[(c1, k1, c2, k2)] = solver.BoolVar(f\"sep_right_{c1}_{k1}_{c2}_{k2}\")\n            sep_below[(c1, k1, c2, k2)] = solver.BoolVar(f\"sep_below_{c1}_{k1}_{c2}_{k2}\")\n            sep_above[(c1, k1, c2, k2)] = solver.BoolVar(f\"sep_above_{c1}_{k1}_{c2}_{k2}\")\n    \n    for c in categories:\n        for k in range(1, max_qty[c] + 1):\n            solver.Add(\n                x[c][k] + (1 - rot[c][k]) * length[c] + rot[c][k] * width[c] \n                <= table_length + table_length * (1 - use[c][k])\n            )\n            \n            solver.Add(\n                y[c][k] + (1 - rot[c][k]) * width[c] + rot[c][k] * length[c]\n                <= table_width + table_width * (1 - use[c][k])\n            )\n            \n            solver.Add(x[c][k] <= table_length * use[c][k])\n            \n            solver.Add(y[c][k] <= table_width * use[c][k])\n    \n    for i in range(len(pieces)):\n        c1, k1 = pieces[i]\n        for j in range(i + 1, len(pieces)):\n            c2, k2 = pieces[j]\n            \n            solver.Add(\n                sep_left[(c1, k1, c2, k2)] + sep_right[(c1, k1, c2, k2)] + \n                sep_below[(c1, k1, c2, k2)] + sep_above[(c1, k1, c2, k2)]\n                >= use[c1][k1] + use[c2][k2] - 1\n            )\n            \n            solver.Add(\n                x[c1][k1] + (1 - rot[c1][k1]) * length[c1] + rot[c1][k1] * width[c1]\n                <= x[c2][k2] + table_length * (1 - sep_left[(c1, k1, c2, k2)])\n            )\n            \n            solver.Add(\n                x[c2][k2] + (1 - rot[c2][k2]) * length[c2] + rot[c2][k2] * width[c2]\n                <= x[c1][k1] + table_length * (1 - sep_right[(c1, k1, c2, k2)])\n            )\n            \n            solver.Add(\n                y[c1][k1] + (1 - rot[c1][k1]) * width[c1] + rot[c1][k1] * length[c1]\n                <= y[c2][k2] + table_width * (1 - sep_below[(c1, k1, c2, k2)])\n            )\n            \n            solver.Add(\n                y[c2][k2] + (1 - rot[c2][k2]) * width[c2] + rot[c2][k2] * length[c2]\n                <= y[c1][k1] + table_width * (1 - sep_above[(c1, k1, c2, k2)])\n            )\n    \n    objective = solver.Objective()\n    for c in categories:\n        for k in range(1, max_qty[c] + 1):\n            objective.SetCoefficient(use[c][k], value[c])\n    objective.SetMaximization()\n    \n    solver.set_time_limit(30000)\n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:\n        placements = []\n        total_value = 0\n        \n        for c in categories:\n            for k in range(1, max_qty[c] + 1):\n                if use[c][k].solution_value() > 0.5:\n                    x_val = x[c][k].solution_value()\n                    y_val = y[c][k].solution_value()\n                    rot_val = int(rot[c][k].solution_value() > 0.5)\n                    \n                    placements.append([c - 1, int(round(x_val)), int(round(y_val)), rot_val])\n                    total_value += value[c]\n        \n        print(json.dumps({\"placements\": placements, \"total_value\": total_value}))\n    else:\n        print(json.dumps({\"placements\": [], \"total_value\": 0}))\n\nif __name__ == \"__main__\":\n    solve_cutting_problem()"
+}

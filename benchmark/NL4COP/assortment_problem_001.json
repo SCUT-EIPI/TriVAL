@@ -1,0 +1,107 @@
+{
+    "problem_id": "assortment_problem_001",
+    "problem_type": "Assortment Problem",
+    "difficulty": "simple",
+    "problem_description": "Sarah is organizing a craft workshop and needs to cut various fabric pieces from two available bolts of fabric to minimize material waste. She has two fabric bolts available: one measuring 60x60 inches and another measuring 70x50 inches. The workshop requires the following fabric pieces: 1. Small decorative pieces: 20x10 inches each (need between 2 and 5 pieces) 2. Medium square pieces: 30x30 inches each (need between 3 and 6 pieces) 3. Large rectangular pieces: 25x15 inches each (need between 2 and 4 pieces). Each fabric piece must be cut entirely from one of the fabric bolts without overlapping other pieces. Sarah can use both types of fabric bolts but wants to minimize the total percentage of fabric wasted. She needs to determine how to arrange all the required pieces on the available fabric bolts to use as much fabric as possible.\n\nPrint the following fields: - waste_rate: percentage of fabric wasted. - fabric_instances: for each fabric_type, list placements with piece, x, y, orientation. - piece_counts: how many of each piece type are cut. - total_fabric_area: sum of all fabric areas used. - total_used_area: sum of all piece areas.",
+    "reference_solution": {
+        "waste_rate": 0.014084507042253521,
+        "fabric_instances": {
+            "A": [
+                {
+                    "piece": "medium",
+                    "x": 0,
+                    "y": 30,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "medium",
+                    "x": 0,
+                    "y": 0,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "medium",
+                    "x": 30,
+                    "y": 30,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "medium",
+                    "x": 30,
+                    "y": 0,
+                    "orientation": "normal"
+                }
+            ],
+            "B": [
+                {
+                    "piece": "small",
+                    "x": 30,
+                    "y": 25,
+                    "orientation": "rotated"
+                },
+                {
+                    "piece": "small",
+                    "x": 50,
+                    "y": 10,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "small",
+                    "x": 50,
+                    "y": 0,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "small",
+                    "x": 0,
+                    "y": 15,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "small",
+                    "x": 20,
+                    "y": 15,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "medium",
+                    "x": 40,
+                    "y": 20,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "large",
+                    "x": 0,
+                    "y": 0,
+                    "orientation": "normal"
+                },
+                {
+                    "piece": "large",
+                    "x": 15,
+                    "y": 25,
+                    "orientation": "rotated"
+                },
+                {
+                    "piece": "large",
+                    "x": 0,
+                    "y": 25,
+                    "orientation": "rotated"
+                },
+                {
+                    "piece": "large",
+                    "x": 25,
+                    "y": 0,
+                    "orientation": "normal"
+                }
+            ]
+        },
+        "piece_counts": {
+            "small": 5,
+            "medium": 5,
+            "large": 4
+        },
+        "total_fabric_area": 7100,
+        "total_used_area": 7000
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    F = ['A', 'B']\n    W = {'A': 60, 'B': 70}\n    H = {'A': 60, 'B': 50}\n    A = {'A': 3600, 'B': 3500}\n    \n    P = ['small', 'medium', 'large']\n    w = {'small': 20, 'medium': 30, 'large': 25}\n    h = {'small': 10, 'medium': 30, 'large': 15}\n    a = {'small': 200, 'medium': 900, 'large': 375}\n    \n    L = {'small': 2, 'medium': 3, 'large': 2}\n    U = {'small': 5, 'medium': 6, 'large': 4}\n    \n    use = {}\n    for f in F:\n        use[f] = model.NewBoolVar(f\"use_{f}\")\n    \n    n = {}\n    for p in P:\n        n[p] = model.NewIntVar(L[p], U[p], f\"n_{p}\")\n    \n    assign = {}\n    x = {}\n    y = {}\n    r = {}\n    \n    for p in P:\n        assign[p] = {}\n        x[p] = {}\n        y[p] = {}\n        r[p] = {}\n        for i in range(U[p]):\n            assign[p][i] = {}\n            x[p][i] = {}\n            y[p][i] = {}\n            r[p][i] = {}\n            for f in F:\n                assign[p][i][f] = model.NewBoolVar(f\"assign_{p}_{i}_{f}\")\n                x[p][i][f] = model.NewIntVar(0, W[f] - min(w[p], h[p]), f\"x_{p}_{i}_{f}\")\n                y[p][i][f] = model.NewIntVar(0, H[f] - min(w[p], h[p]), f\"y_{p}_{i}_{f}\")\n                r[p][i][f] = model.NewBoolVar(f\"r_{p}_{i}_{f}\")\n    \n    for p in P:\n        for i in range(U[p]):\n            model.Add(sum(assign[p][i][f] for f in F) <= 1)\n    \n    for p in P:\n        model.Add(n[p] == sum(assign[p][i][f] for i in range(U[p]) for f in F))\n    \n    for p in P:\n        for i in range(U[p]):\n            for f in F:\n                effective_width = model.NewIntVar(0, max(w[p], h[p]), f\"eff_w_{p}_{i}_{f}\")\n                effective_height = model.NewIntVar(0, max(w[p], h[p]), f\"eff_h_{p}_{i}_{f}\")\n                \n                model.Add(effective_width == w[p]).OnlyEnforceIf(r[p][i][f].Not())\n                model.Add(effective_width == h[p]).OnlyEnforceIf(r[p][i][f])\n                model.Add(effective_height == h[p]).OnlyEnforceIf(r[p][i][f].Not())\n                model.Add(effective_height == w[p]).OnlyEnforceIf(r[p][i][f])\n                \n                model.Add(x[p][i][f] + effective_width <= W[f]).OnlyEnforceIf(assign[p][i][f])\n                model.Add(y[p][i][f] + effective_height <= H[f]).OnlyEnforceIf(assign[p][i][f])\n                \n                model.Add(x[p][i][f] == 0).OnlyEnforceIf(assign[p][i][f].Not())\n                model.Add(y[p][i][f] == 0).OnlyEnforceIf(assign[p][i][f].Not())\n                model.Add(r[p][i][f] == 0).OnlyEnforceIf(assign[p][i][f].Not())\n    \n    for f in F:\n        x_intervals = []\n        y_intervals = []\n        \n        for p in P:\n            for i in range(U[p]):\n                x_size = model.NewIntVar(min(w[p], h[p]), max(w[p], h[p]), f\"x_size_{p}_{i}_{f}\")\n                y_size = model.NewIntVar(min(w[p], h[p]), max(w[p], h[p]), f\"y_size_{p}_{i}_{f}\")\n                \n                model.Add(x_size == w[p]).OnlyEnforceIf(r[p][i][f].Not())\n                model.Add(x_size == h[p]).OnlyEnforceIf(r[p][i][f])\n                model.Add(y_size == h[p]).OnlyEnforceIf(r[p][i][f].Not())\n                model.Add(y_size == w[p]).OnlyEnforceIf(r[p][i][f])\n                \n                x_end = model.NewIntVar(0, W[f], f\"x_end_{p}_{i}_{f}\")\n                y_end = model.NewIntVar(0, H[f], f\"y_end_{p}_{i}_{f}\")\n                \n                model.Add(x_end == x[p][i][f] + x_size)\n                model.Add(y_end == y[p][i][f] + y_size)\n                \n                x_interval = model.NewOptionalIntervalVar(\n                    x[p][i][f], x_size, x_end, assign[p][i][f], f\"x_interval_{p}_{i}_{f}\"\n                )\n                y_interval = model.NewOptionalIntervalVar(\n                    y[p][i][f], y_size, y_end, assign[p][i][f], f\"y_interval_{p}_{i}_{f}\"\n                )\n                \n                x_intervals.append(x_interval)\n                y_intervals.append(y_interval)\n        \n        if x_intervals:\n            model.AddNoOverlap2D(x_intervals, y_intervals)\n    \n    for f in F:\n        for p in P:\n            for i in range(U[p]):\n                model.AddImplication(assign[p][i][f], use[f])\n        \n        total_assign = sum(assign[p][i][f] for p in P for i in range(U[p]))\n        model.Add(use[f] <= total_assign)\n    \n    total_fabric_area_expr = sum(use[f] * A[f] for f in F)\n    total_used_area_expr = sum(n[p] * a[p] for p in P)\n    \n    waste_area = model.NewIntVar(0, sum(A[f] for f in F), \"waste_area\")\n    model.Add(waste_area == total_fabric_area_expr - total_used_area_expr)\n    \n    model.Minimize(waste_area)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_fabric_area_val = sum(solver.Value(use[f]) * A[f] for f in F)\n        total_used_area_val = sum(solver.Value(n[p]) * a[p] for p in P)\n        \n        if total_fabric_area_val > 0:\n            waste_rate = (total_fabric_area_val - total_used_area_val) / total_fabric_area_val\n        else:\n            waste_rate = 0.0\n        \n        fabric_instances = {}\n        for f in F:\n            if solver.Value(use[f]) == 1:\n                fabric_instances[f] = []\n                for p in P:\n                    for i in range(U[p]):\n                        if solver.Value(assign[p][i][f]) == 1:\n                            x_val = solver.Value(x[p][i][f])\n                            y_val = solver.Value(y[p][i][f])\n                            r_val = solver.Value(r[p][i][f])\n                            orientation = \"rotated\" if r_val == 1 else \"normal\"\n                            fabric_instances[f].append({\n                                'piece': p,\n                                'x': x_val,\n                                'y': y_val,\n                                'orientation': orientation\n                            })\n        \n        piece_counts = {p: solver.Value(n[p]) for p in P}\n        \n        result = {\n            \"waste_rate\": waste_rate,\n            \"fabric_instances\": fabric_instances,\n            \"piece_counts\": piece_counts,\n            \"total_fabric_area\": total_fabric_area_val,\n            \"total_used_area\": total_used_area_val\n        }\n        print(json.dumps(result))\n            \n    else:\n        result = {\n            \"waste_rate\": 1.0,\n            \"fabric_instances\": {},\n            \"piece_counts\": {p: 0 for p in P},\n            \"total_fabric_area\": 0,\n            \"total_used_area\": 0\n        }\n        print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}

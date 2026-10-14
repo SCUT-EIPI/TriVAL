@@ -1,0 +1,36 @@
+{
+    "problem_id": "unconstrained_guillotine_cutting_001",
+    "problem_type": "unconstrained guillotine cutting problem",
+    "difficulty": "simple",
+    "problem_description": "An advanced industrial manufacturing enterprise is confronting a sophisticated spatial optimization challenge involving sequential rectangular sprite extraction from a premium material screen measuring length 250 centimeters and width 250 centimeters. This process employs guillotine cutting methodology where each incision must extend linearly from one edge to the opposite edge across the entire material. The unconstrained framework permits 90-degree rotational adjustment of sprites and imposes no limitations on the hierarchical organization or chronological sequencing of cutting operations. Manufacturing engineers must determine the optimal configuration and sequential cutting strategy to maximize total design points within the established guillotine cutting framework, governed by fundamental constraints that sprites must not overlap and must be completely contained within the designated screen boundaries. Screen specifications: length 250 centimeters and width 250 centimeters. Sprite inventory encompasses ten distinct configurations: 1) length 167 centimeters and width 184 centimeters, design points 30728 units; 2) length 114 centimeters and width 118 centimeters, design points 13452 units; 3) length 167 centimeters and width 152 centimeters, design points 25384 units; 4) length 83 centimeters and width 140 centimeters, design points 11620 units; 5) length 70 centimeters and width 86 centimeters, design points 6020 units; 6) length 143 centimeters and width 166 centimeters, design points 23738 units; 7) length 120 centimeters and width 160 centimeters, design points 19200 units; 8) length 66 centimeters and width 148 centimeters, design points 9768 units; 9) length 87 centimeters and width 141 centimeters, design points 12267 units; 10) length 69 centimeters and width 165 centimeters, design points 11385 units.\n\nPrint the following fields: - placements: for each sprite, list placement with index, x, y, rotation. - total_design_points: total value of placed sprites.",
+    "reference_solution": {
+        "placements": [
+            [
+                0,
+                0,
+                66,
+                0
+            ],
+            [
+                3,
+                167,
+                0,
+                0
+            ],
+            [
+                4,
+                167,
+                140,
+                0
+            ],
+            [
+                7,
+                0,
+                0,
+                1
+            ]
+        ],
+        "total_design_points": 58136
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef solve_guillotine_cutting():\n    screen_length = 250\n    screen_width = 250\n    \n    sprite_types = list(range(1, 11))\n    length = {\n        1: 167, 2: 114, 3: 167, 4: 83, 5: 70,\n        6: 143, 7: 120, 8: 66, 9: 87, 10: 69\n    }\n    width = {\n        1: 184, 2: 118, 3: 152, 4: 140, 5: 86,\n        6: 166, 7: 160, 8: 148, 9: 141, 10: 165\n    }\n    design_points = {\n        1: 30728, 2: 13452, 3: 25384, 4: 11620, 5: 6020,\n        6: 23738, 7: 19200, 8: 9768, 9: 12267, 10: 11385\n    }\n    \n    model = cp_model.CpModel()\n    \n    placed = {}\n    x = {}\n    y = {}\n    rotated = {}\n    effective_length = {}\n    effective_width = {}\n    \n    for i in sprite_types:\n        placed[i] = model.NewBoolVar(f\"placed_{i}\")\n        rotated[i] = model.NewBoolVar(f\"rotated_{i}\")\n        \n        x[i] = model.NewIntVar(0, screen_length, f\"x_{i}\")\n        y[i] = model.NewIntVar(0, screen_width, f\"y_{i}\")\n        \n        effective_length[i] = model.NewIntVar(0, max(length[i], width[i]), f\"eff_len_{i}\")\n        effective_width[i] = model.NewIntVar(0, max(length[i], width[i]), f\"eff_width_{i}\")\n        \n        model.Add(effective_length[i] == length[i]).OnlyEnforceIf(rotated[i].Not())\n        model.Add(effective_length[i] == width[i]).OnlyEnforceIf(rotated[i])\n        \n        model.Add(effective_width[i] == width[i]).OnlyEnforceIf(rotated[i].Not())\n        model.Add(effective_width[i] == length[i]).OnlyEnforceIf(rotated[i])\n        \n        model.Add(x[i] + effective_length[i] <= screen_length).OnlyEnforceIf(placed[i])\n        model.Add(y[i] + effective_width[i] <= screen_width).OnlyEnforceIf(placed[i])\n    \n    for i, j in itertools.permutations(sprite_types, 2):\n        if i < j:\n            left_of = model.NewBoolVar(f\"left_of_{i}_{j}\")\n            right_of = model.NewBoolVar(f\"right_of_{i}_{j}\")\n            below = model.NewBoolVar(f\"below_{i}_{j}\")\n            above = model.NewBoolVar(f\"above_{i}_{j}\")\n            \n            model.AddBoolOr([left_of, right_of, below, above, placed[i].Not(), placed[j].Not()])\n            \n            model.Add(x[i] + effective_length[i] <= x[j]).OnlyEnforceIf(left_of)\n            \n            model.Add(x[j] + effective_length[j] <= x[i]).OnlyEnforceIf(right_of)\n            \n            model.Add(y[i] + effective_width[i] <= y[j]).OnlyEnforceIf(below)\n            \n            model.Add(y[j] + effective_width[j] <= y[i]).OnlyEnforceIf(above)\n            \n    objective_terms = []\n    for i in sprite_types:\n        objective_terms.append(design_points[i] * placed[i])\n    \n    model.Maximize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        placements = []\n        total_design_points = 0\n        for i in sprite_types:\n            if solver.Value(placed[i]) == 1:\n                x_val = solver.Value(x[i])\n                y_val = solver.Value(y[i])\n                rot_val = solver.Value(rotated[i])\n                total_design_points += design_points[i]\n                placements.append([i - 1, x_val, y_val, rot_val])\n        print(json.dumps({\n            \"placements\": placements,\n            \"total_design_points\": total_design_points\n        }))\n    else:\n        print(json.dumps({\n            \"placements\": [],\n            \"total_design_points\": 0\n        }))\n\nif __name__ == \"__main__\":\n    solve_guillotine_cutting()"
+}

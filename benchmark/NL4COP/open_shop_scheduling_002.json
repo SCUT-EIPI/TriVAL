@@ -1,0 +1,75 @@
+{
+    "problem_id": "open_shop_scheduling_002",
+    "problem_type": "Open Shop Scheduling Problem",
+    "difficulty": "medium",
+    "problem_description": "In a sophisticated quantum computing research facility, seven independent experiments each contain seven computational procedures that require uninterrupted processing on dedicated quantum processing nodes. The research coordinator seeks to optimize the temporal efficiency by determining the optimal initiation schedule for each procedure to minimize the overall completion horizon across all concurrent experimental executions. The system must adhere to several operational constraints: first, within any given experiment, only one procedure can be active at any time, meaning procedures in the same experiment cannot run simultaneously; second, each quantum processing node can handle only one procedure at any given moment, so procedures assigned to the same QPU must be scheduled at different times; third, and most importantly, unlike traditional sequential workflows, each experiment's procedures can be processed in any order the coordinator chooses. The coordinator can decide which procedure to run first, second, and so on for each experiment based on what works best for the overall schedule. The experiment specifications are as follows: Experiment Alpha has seven procedures requiring QPU-3 for 89 seconds, QPU-2 for 39 seconds, QPU-4 for 54 seconds, QPU-7 for 34 seconds, QPU-1 for 71 seconds, QPU-6 for 92 seconds, and QPU-5 for 56 seconds, all of which can be scheduled in any order. Experiment Beta has procedures requiring QPU-2 for 19 seconds, QPU-3 for 13 seconds, QPU-6 for 81 seconds, QPU-5 for 46 seconds, QPU-1 for 91 seconds, QPU-4 for 73 seconds, and QPU-7 for 27 seconds, with complete flexibility in sequencing. Experiment Gamma has procedures requiring QPU-1 for 66 seconds, QPU-2 for 95 seconds, QPU-6 for 48 seconds, QPU-7 for 24 seconds, QPU-3 for 96 seconds, QPU-4 for 18 seconds, and QPU-5 for 14 seconds, allowing any arrangement. Experiment Delta has procedures requiring QPU-2 for 48 seconds, QPU-6 for 46 seconds, QPU-1 for 78 seconds, QPU-7 for 94 seconds, QPU-3 for 19 seconds, QPU-4 for 68 seconds, and QPU-5 for 63 seconds, with flexible ordering. Experiment Epsilon has procedures requiring QPU-6 for 60 seconds, QPU-4 for 28 seconds, QPU-3 for 91 seconds, QPU-5 for 75 seconds, QPU-1 for 52 seconds, QPU-2 for 9 seconds, and QPU-7 for 7 seconds, which can be arranged in any sequence. Experiment Zeta has procedures requiring QPU-7 for 33 seconds, QPU-5 for 98 seconds, QPU-2 for 37 seconds, QPU-1 for 11 seconds, QPU-4 for 2 seconds, QPU-3 for 30 seconds, and QPU-6 for 38 seconds, allowing any permutation. Experiment Eta has procedures requiring QPU-2 for 83 seconds, QPU-4 for 45 seconds, QPU-5 for 37 seconds, QPU-7 for 77 seconds, QPU-6 for 52 seconds, QPU-3 for 88 seconds, and QPU-1 for 52 seconds, with completely flexible scheduling order.\n\nPrint the following fields: - start_times: start time for each experiment's procedure. - makespan: total completion time.",
+    "reference_solution": {
+        "start_times": [
+            [
+                235,
+                306,
+                146,
+                92,
+                379,
+                0,
+                345
+            ],
+            [
+                1,
+                345,
+                421,
+                243,
+                197,
+                92,
+                379
+            ],
+            [
+                311,
+                115,
+                19,
+                386,
+                267,
+                219,
+                406
+            ],
+            [
+                92,
+                384,
+                0,
+                316,
+                19,
+                173,
+                219
+            ],
+            [
+                181,
+                233,
+                330,
+                11,
+                82,
+                267,
+                160
+            ],
+            [
+                170,
+                242,
+                115,
+                148,
+                281,
+                382,
+                1
+            ],
+            [
+                382,
+                0,
+                242,
+                197,
+                160,
+                330,
+                83
+            ]
+        ],
+        "makespan": 435
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    experiments = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta']\n    QPUs = [1, 2, 3, 4, 5, 6, 7]\n    positions = [1, 2, 3, 4, 5, 6, 7]\n    \n    duration = {\n        'Alpha': {3: 89, 2: 39, 4: 54, 7: 34, 1: 71, 6: 92, 5: 56},\n        'Beta': {2: 19, 3: 13, 6: 81, 5: 46, 1: 91, 4: 73, 7: 27},\n        'Gamma': {1: 66, 2: 95, 6: 48, 7: 24, 3: 96, 4: 18, 5: 14},\n        'Delta': {2: 48, 6: 46, 1: 78, 7: 94, 3: 19, 4: 68, 5: 63},\n        'Epsilon': {6: 60, 4: 28, 3: 91, 5: 75, 1: 52, 2: 9, 7: 7},\n        'Zeta': {7: 33, 5: 98, 2: 37, 1: 11, 4: 2, 3: 30, 6: 38},\n        'Eta': {2: 83, 4: 45, 5: 37, 7: 77, 6: 52, 3: 88, 1: 52}\n    }\n    \n    x = {}\n    for e in experiments:\n        for p in positions:\n            for q in QPUs:\n                x[(e, p, q)] = model.NewBoolVar(f'x_{e}_{p}_{q}')\n    \n    start = {}\n    max_possible_time = sum(duration[e][q] for e in experiments for q in QPUs)\n    for e in experiments:\n        for q in QPUs:\n            start[(e, q)] = model.NewIntVar(0, max_possible_time, f'start_{e}_{q}')\n    \n    makespan = model.NewIntVar(0, max_possible_time, 'makespan')\n    \n    for e in experiments:\n        for p in positions:\n            model.AddExactlyOne(x[(e, p, q)] for q in QPUs)\n    \n    for e in experiments:\n        for q in QPUs:\n            model.AddExactlyOne(x[(e, p, q)] for p in positions)\n    \n    M = max_possible_time\n    \n    for e in experiments:\n        for p in range(1, 7):\n            for q1 in QPUs:\n                for q2 in QPUs:\n                    if q1 == q2:\n                        continue\n                    model.Add(start[(e, q2)] >= start[(e, q1)] + duration[e][q1] - \n                             M * (2 - x[(e, p, q1)] - x[(e, p+1, q2)]))\n    \n    for q in QPUs:\n        for i in range(len(experiments)):\n            for j in range(i + 1, len(experiments)):\n                e1 = experiments[i]\n                e2 = experiments[j]\n                \n                e1_before_e2 = model.NewBoolVar(f'order_{q}_{e1}_{e2}')\n                \n                model.Add(start[(e2, q)] >= start[(e1, q)] + duration[e1][q]).OnlyEnforceIf(e1_before_e2)\n                \n                model.Add(start[(e1, q)] >= start[(e2, q)] + duration[e2][q]).OnlyEnforceIf(e1_before_e2.Not())\n    \n    for e in experiments:\n        for q in QPUs:\n            model.Add(makespan >= start[(e, q)] + duration[e][q])\n    \n    model.Minimize(makespan)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 300.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        start_times = []\n        for e in experiments:\n            exp_start_times = []\n            for q in QPUs:\n                exp_start_times.append(solver.Value(start[(e, q)]))\n            start_times.append(exp_start_times)\n        result = {\n            \"start_times\": start_times,\n            \"makespan\": solver.Value(makespan)\n        }\n        print(json.dumps(result))\n    else:\n        print(json.dumps({\"start_times\": [], \"makespan\": -1}))\n\nif __name__ == \"__main__\":\n    main()"
+}

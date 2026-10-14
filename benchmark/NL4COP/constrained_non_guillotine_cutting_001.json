@@ -1,0 +1,54 @@
+{
+    "problem_id": "constrained_non_guillotine_cutting_001",
+    "problem_type": "Constrained Non-Guillotine Cutting Problem",
+    "difficulty": "simple",
+    "problem_description": "A local community center is setting up a 10x10 foot exhibition booth for a craft fair and needs to arrange display tables of different sizes to showcase various handmade products. They have three types of display tables available:\n\n1. Standard craft tables: 4x3 feet, must include at least 1 but can set up up to 3, display value 15 points (ideal for pottery and ceramics)\n2. Long vendor tables: 5x2 feet, optional but can use up to 2, display value 12 points (perfect for textiles and fabrics)\n3. Square demonstration tables: 3x3 feet, needs at least 1 but no more than 2, display value 9 points (great for live craft demonstrations)\n\nEach table can be positioned either in its original orientation or rotated by 90 degrees. All tables must fit completely within the 10x10 foot booth space and cannot overlap with each other. The event organizer wants to determine the best arrangement of tables to achieve the maximum total display value while ensuring optimal visitor flow and accessibility throughout the booth.\n\nPrint the following fields: - total_utility_value: total utility value of placed tables. - table_placements: for each table, list placements with table type, x, y, rotation.",
+    "reference_solution": {
+        "total_utility_value": 87,
+        "table_placements": [
+            [
+                1,
+                4,
+                6,
+                1
+            ],
+            [
+                1,
+                4,
+                0,
+                0
+            ],
+            [
+                1,
+                0,
+                0,
+                0
+            ],
+            [
+                2,
+                0,
+                3,
+                1
+            ],
+            [
+                2,
+                2,
+                3,
+                1
+            ],
+            [
+                3,
+                4,
+                3,
+                0
+            ],
+            [
+                3,
+                7,
+                3,
+                0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef solve_table_arrangement():\n    booth_width = 10\n    booth_height = 10\n    \n    table_types = ['standard', 'long', 'square']\n    \n    width_original = {\n        'standard': 4,\n        'long': 5,\n        'square': 3\n    }\n    \n    height_original = {\n        'standard': 3,\n        'long': 2,\n        'square': 3\n    }\n    \n    min_count = {\n        'standard': 1,\n        'long': 0,\n        'square': 1\n    }\n    \n    max_count = {\n        'standard': 3,\n        'long': 2,\n        'square': 2\n    }\n    \n    display_value = {\n        'standard': 15,\n        'long': 12,\n        'square': 9\n    }\n    \n    model = cp_model.CpModel()\n    \n    placed = {}\n    for t in table_types:\n        placed[t] = model.NewIntVar(min_count[t], max_count[t], f'placed_{t}')\n    \n    x = {}\n    y = {}\n    rotated = {}\n    active = {}\n    \n    for t in table_types:\n        for i in range(max_count[t]):\n            x[(i, t)] = model.NewIntVar(0, booth_width, f'x_{i}_{t}')\n            y[(i, t)] = model.NewIntVar(0, booth_height, f'y_{i}_{t}')\n            rotated[(i, t)] = model.NewBoolVar(f'rotated_{i}_{t}')\n            active[(i, t)] = model.NewBoolVar(f'active_{i}_{t}')\n    \n    for t in table_types:\n        model.Add(placed[t] == sum(active[(i, t)] for i in range(max_count[t])))\n    \n    width = {}\n    height = {}\n    \n    for t in table_types:\n        for i in range(max_count[t]):\n            width[(i, t)] = model.NewIntVar(0, booth_width, f'width_{i}_{t}')\n            model.Add(width[(i, t)] == height_original[t]).OnlyEnforceIf(rotated[(i, t)])\n            model.Add(width[(i, t)] == width_original[t]).OnlyEnforceIf(rotated[(i, t)].Not())\n            \n            height[(i, t)] = model.NewIntVar(0, booth_height, f'height_{i}_{t}')\n            model.Add(height[(i, t)] == width_original[t]).OnlyEnforceIf(rotated[(i, t)])\n            model.Add(height[(i, t)] == height_original[t]).OnlyEnforceIf(rotated[(i, t)].Not())\n            \n            model.Add(x[(i, t)] + width[(i, t)] <= booth_width).OnlyEnforceIf(active[(i, t)])\n            model.Add(y[(i, t)] + height[(i, t)] <= booth_height).OnlyEnforceIf(active[(i, t)])\n    \n    for t in table_types:\n        for i in range(max_count[t] - 1):\n            model.AddImplication(active[(i + 1, t)], active[(i, t)])\n    \n    all_tables = []\n    for t in table_types:\n        for i in range(max_count[t]):\n            all_tables.append((i, t))\n    \n    for idx1, (i1, t1) in enumerate(all_tables):\n        for idx2, (i2, t2) in enumerate(all_tables):\n            if idx1 >= idx2:\n                continue\n            \n            left_of = model.NewBoolVar(f'left_{i1}_{t1}_{i2}_{t2}')\n            right_of = model.NewBoolVar(f'right_{i1}_{t1}_{i2}_{t2}')\n            below = model.NewBoolVar(f'below_{i1}_{t1}_{i2}_{t2}')\n            above = model.NewBoolVar(f'above_{i1}_{t1}_{i2}_{t2}')\n            \n            w1 = width[(i1, t1)]\n            h1 = height[(i1, t1)]\n            w2 = width[(i2, t2)]\n            h2 = height[(i2, t2)]\n            \n            model.Add(x[(i1, t1)] + w1 <= x[(i2, t2)]).OnlyEnforceIf([left_of, active[(i1, t1)], active[(i2, t2)]])\n            model.Add(x[(i2, t2)] + w2 <= x[(i1, t1)]).OnlyEnforceIf([right_of, active[(i1, t1)], active[(i2, t2)]])\n            model.Add(y[(i1, t1)] + h1 <= y[(i2, t2)]).OnlyEnforceIf([below, active[(i1, t1)], active[(i2, t2)]])\n            model.Add(y[(i2, t2)] + h2 <= y[(i1, t1)]).OnlyEnforceIf([above, active[(i1, t1)], active[(i2, t2)]])\n            \n            model.AddBoolOr([left_of, right_of, below, above]).OnlyEnforceIf([active[(i1, t1)], active[(i2, t2)]])\n    \n    total_value = sum(placed[t] * display_value[t] for t in table_types)\n    model.Maximize(total_value)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_utility_value = 0\n        table_placements = []\n        \n        type_to_id = {'standard': 1, 'long': 2, 'square': 3}\n        \n        for t in table_types:\n            total_utility_value += solver.Value(placed[t]) * display_value[t]\n            \n            for i in range(max_count[t]):\n                if solver.Value(active[(i, t)]) == 1:\n                    x_val = solver.Value(x[(i, t)])\n                    y_val = solver.Value(y[(i, t)])\n                    rot_val = solver.Value(rotated[(i, t)])\n                    table_placements.append([\n                        type_to_id[t],\n                        x_val,\n                        y_val,\n                        rot_val\n                    ])\n        \n        print(json.dumps({\n            \"total_utility_value\": total_utility_value,\n            \"table_placements\": table_placements\n        }, separators=(',', ':')))\n    else:\n        print(json.dumps({\n            \"total_utility_value\": 0,\n            \"table_placements\": []\n        }, separators=(',', ':')))\n\nif __name__ == \"__main__\":\n    solve_table_arrangement()"
+}

@@ -1,0 +1,77 @@
+{
+    "problem_id": "maximum_flow_001",
+    "problem_type": "Maximum Flow Problem",
+    "difficulty": "simple",
+    "problem_description": "A water distribution system consists of 10 pumping stations including a main water source, 8 intermediate stations, and a final distribution point, all connected by 15 directional pipelines with different flow capacities where water can only flow in the specified direction through each pipeline. The water distribution system is structured as follows: From the water source, water flows to station 1 with a pipeline capacity of 10 cubic meters per minute and to station 2 with a pipeline capacity of 8 cubic meters per minute. In the next layer, station 1 connects to station 3 with a pipeline capacity of 5 cubic meters per minute and to station 4 with a pipeline capacity of 7 cubic meters per minute. Station 2 connects to station 4 with a pipeline capacity of 6 cubic meters per minute and to station 5 with a pipeline capacity of 9 cubic meters per minute. In the following layer, station 3 connects to station 6 with a pipeline capacity of 8 cubic meters per minute. Station 4 connects to station 6 with a pipeline capacity of 4 cubic meters per minute and to station 7 with a pipeline capacity of 10 cubic meters per minute. Station 5 connects to station 7 with a pipeline capacity of 7 cubic meters per minute and to station 8 with a pipeline capacity of 5 cubic meters per minute. Finally, station 6 connects to the distribution point with a pipeline capacity of 12 cubic meters per minute, station 7 connects to the distribution point with a pipeline capacity of 9 cubic meters per minute, and station 8 connects to station 7 with a pipeline capacity of 6 cubic meters per minute and to the distribution point with a pipeline capacity of 8 cubic meters per minute. The operator needs to determine the maximum amount of water that can be transported from the main water source to the final distribution point through the network while respecting flow conservation at each intermediate station and pipeline capacity limits.\n\nPrint the following fields: - max_flow: maximum water flow from source to destination. - flow_distribution: flow amount for each pipeline.",
+    "reference_solution": {
+        "max_flow": 18,
+        "flow_distribution": [
+            [
+                0,
+                1,
+                10
+            ],
+            [
+                0,
+                2,
+                8
+            ],
+            [
+                1,
+                3,
+                5
+            ],
+            [
+                1,
+                4,
+                5
+            ],
+            [
+                2,
+                4,
+                3
+            ],
+            [
+                2,
+                5,
+                5
+            ],
+            [
+                3,
+                6,
+                5
+            ],
+            [
+                4,
+                6,
+                4
+            ],
+            [
+                4,
+                7,
+                4
+            ],
+            [
+                5,
+                8,
+                5
+            ],
+            [
+                6,
+                9,
+                9
+            ],
+            [
+                7,
+                9,
+                4
+            ],
+            [
+                8,
+                9,
+                5
+            ]
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_max_flow():\n    solver = pywraplp.Solver.CreateSolver(\"GLOP\")\n    INF = solver.infinity()\n    \n    nodes = [\"source\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"destination\"]\n    \n    arcs = [\n        (\"source\", \"1\", 10),\n        (\"source\", \"2\", 8),\n        (\"1\", \"3\", 5),\n        (\"1\", \"4\", 7),\n        (\"2\", \"4\", 6),\n        (\"2\", \"5\", 9),\n        (\"3\", \"6\", 8),\n        (\"4\", \"6\", 4),\n        (\"4\", \"7\", 10),\n        (\"5\", \"7\", 7),\n        (\"5\", \"8\", 5),\n        (\"6\", \"destination\", 12),\n        (\"7\", \"destination\", 9),\n        (\"8\", \"7\", 6),\n        (\"8\", \"destination\", 8)\n    ]\n    \n    flow_vars = {}\n    for i, j, cap in arcs:\n        flow_vars[(i, j)] = solver.NumVar(0, cap, f\"flow_{i}_{j}\")\n    \n    intermediate_nodes = [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\"]\n    \n    for node in intermediate_nodes:\n        inflow = []\n        for i, j, _ in arcs:\n            if j == node:\n                inflow.append(flow_vars[(i, j)])\n        \n        outflow = []\n        for i, j, _ in arcs:\n            if i == node:\n                outflow.append(flow_vars[(i, j)])\n        \n        solver.Add(sum(inflow) == sum(outflow))\n    \n    source_outflow = []\n    for i, j, _ in arcs:\n        if i == \"source\":\n            source_outflow.append(flow_vars[(i, j)])\n    \n    solver.Maximize(sum(source_outflow))\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        max_flow = int(round(solver.Objective().Value()))\n        flow_distribution = []\n        node_to_index = {\n            \"source\": 0,\n            \"1\": 1,\n            \"2\": 2,\n            \"3\": 3,\n            \"4\": 4,\n            \"5\": 5,\n            \"6\": 6,\n            \"7\": 7,\n            \"8\": 8,\n            \"destination\": 9\n        }\n        for (i, j), var in flow_vars.items():\n            flow_val = var.solution_value()\n            if flow_val > 1e-6:\n                flow_distribution.append([\n                    node_to_index[i],\n                    node_to_index[j],\n                    int(round(flow_val))\n                ])\n        flow_distribution.sort()\n    else:\n        max_flow = 0\n        flow_distribution = []\n    \n    print(json.dumps({\n        \"max_flow\": max_flow,\n        \"flow_distribution\": flow_distribution\n    }))\n\nif __name__ == \"__main__\":\n    solve_max_flow()"
+}

@@ -1,0 +1,33 @@
+{
+    "problem_id": "orienteering_problem_001",
+    "problem_type": "Orienteering Problem",
+    "difficulty": "simple",
+    "problem_description": "Sarah is planning a scenic tour through a city park, but due to her limited time and energy, this tour can only cover a distance of 2.5 kilometers. She must start at the park entrance located at (0, 0) and finish at the observation deck located at (1.0, 1.0), with all coordinates measured in kilometers. While any two locations can be reached by walking directly in a straight line, each attraction can be visited at most once, and Sarah needs to determine which attractions to include in her route to maximize her sightseeing experience. The park entrance and observation deck have no meaningful value, while the following attractions have their coordinates and meaningful values: 1. Rose Garden at (0.2, 0.3) worth 10 meaningful value; 2. Duck Pond at (0.5, 0.1) worth 15 meaningful value; 3. Art Installation at (0.8, 0.4) worth 20 meaningful value; 4. Cafe Terrace at (0.6, 0.7) worth 12 meaningful value; 5. Music Pavilion at (0.3, 0.6) worth 18 meaningful value; 6. Children's Playground at (0.1, 0.8) worth 8 meaningful value; 7. Botanical Garden at (0.7, 0.2) worth 14 meaningful value; 8. Meditation Area at (0.4, 0.5) worth 16 meaningful value.\n\nPrint the following fields: - path: sequence of locations visited from start to end. - visited_attractions: visitation status for each attraction. - total_meaningful_value: total sightseeing value. - total_distance: total walking distance.",
+    "reference_solution": {
+        "path": [
+            0,
+            2,
+            7,
+            3,
+            8,
+            5,
+            4,
+            9
+        ],
+        "visited_attractions": [
+            1,
+            0,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1
+        ],
+        "total_meaningful_value": 95,
+        "total_distance": 2.33
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef main():\n    model = cp_model.CpModel()\n    \n    A = list(range(1, 9))\n    coordinates = {\n        0: (0.0, 0.0),\n        9: (1.0, 1.0),\n        1: (0.2, 0.3),\n        2: (0.5, 0.1),\n        3: (0.8, 0.4),\n        4: (0.6, 0.7),\n        5: (0.3, 0.6),\n        6: (0.1, 0.8),\n        7: (0.7, 0.2),\n        8: (0.4, 0.5)\n    }\n    \n    v = {\n        1: 10,\n        2: 15,\n        3: 20,\n        4: 12,\n        5: 18,\n        6: 8,\n        7: 14,\n        8: 16\n    }\n    \n    D_max = 2.5\n    \n    locations = [0] + A + [9]\n    d = {}\n    for p in locations:\n        for q in locations:\n            if p != q:\n                x1, y1 = coordinates[p]\n                x2, y2 = coordinates[q]\n                distance = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)\n                d[(p, q)] = distance\n    \n    z = {}\n    for i in A:\n        z[i] = model.NewBoolVar(f\"z_{i}\")\n    \n    x = {}\n    for p in locations:\n        for q in locations:\n            if p != q:\n                x[(p, q)] = model.NewBoolVar(f\"x_{p}_{q}\")\n    \n    M = len(A) + 2\n    u = {}\n    for p in locations:\n        u[p] = model.NewIntVar(0, M, f\"u_{p}\")\n    \n    start_outgoing = []\n    for q in A + [9]:\n        start_outgoing.append(x[(0, q)])\n    model.Add(sum(start_outgoing) == 1)\n    \n    end_incoming = []\n    for p in [0] + A:\n        end_incoming.append(x[(p, 9)])\n    model.Add(sum(end_incoming) == 1)\n    \n    for i in A:\n        incoming = []\n        for p in [0] + A:\n            if p != i:\n                incoming.append(x[(p, i)])\n        model.Add(sum(incoming) == z[i])\n        \n        outgoing = []\n        for q in A + [9]:\n            if q != i:\n                outgoing.append(x[(i, q)])\n        model.Add(sum(outgoing) == z[i])\n    \n    for i in A:\n        incoming = []\n        outgoing = []\n        for p in [0] + A:\n            if p != i:\n                incoming.append(x[(p, i)])\n        for q in A + [9]:\n            if q != i:\n                outgoing.append(x[(i, q)])\n    \n    for p in locations:\n        for q in locations:\n            if p != q:\n                model.Add(u[q] >= u[p] + 1 - M * (1 - x[(p, q)]))\n    \n    model.Add(u[0] == 0)\n    \n    total_visited = sum(z[i] for i in A)\n    model.Add(u[9] == total_visited + 1)\n    \n    distance_terms = []\n    for p in locations:\n        for q in locations:\n            if p != q:\n                scaled_distance = int(round(d[(p, q)] * 1000))\n                distance_terms.append(scaled_distance * x[(p, q)])\n    \n    scaled_max_distance = int(round(D_max * 1000))\n    model.Add(sum(distance_terms) <= scaled_max_distance)\n    \n    objective_terms = []\n    for i in A:\n        objective_terms.append(v[i] * z[i])\n    \n    model.Maximize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 120.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        visited_attractions = {}\n        for i in A:\n            visited_attractions[i] = solver.Value(z[i]) == 1\n        \n        path = [0]\n        current = 0\n        \n        while current != 9:\n            for q in locations:\n                if q != current and solver.Value(x[(current, q)]) == 1:\n                    path.append(q)\n                    current = q\n                    break\n        \n        total_distance = 0.0\n        for i in range(len(path) - 1):\n            p = path[i]\n            q = path[i + 1]\n            total_distance += d[(p, q)]\n        \n        total_meaningful_value = 0\n        for i in A:\n            if visited_attractions[i]:\n                total_meaningful_value += v[i]\n        \n        visited_attractions_list = [0] * 10\n        for i in range(1, 9):\n            visited_attractions_list[i] = 1 if visited_attractions[i] else 0\n        visited_attractions_list[0] = 1\n        visited_attractions_list[9] = 1\n\n        print(json.dumps({\n            \"path\": path,\n            \"visited_attractions\": visited_attractions_list,\n            \"total_meaningful_value\": total_meaningful_value,\n            \"total_distance\": round(total_distance, 2)\n        }))\n        \n    else:\n        print(json.dumps({\n            \"path\": [],\n            \"visited_attractions\": [],\n            \"total_meaningful_value\": 0,\n            \"total_distance\": 0.0\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

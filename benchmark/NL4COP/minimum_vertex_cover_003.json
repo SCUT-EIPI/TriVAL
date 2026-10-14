@@ -1,0 +1,26 @@
+{
+    "problem_id": "minimum_vertex_cover_003",
+    "problem_type": "Minimum Vertex Cover Problem",
+    "difficulty": "hard",
+    "problem_description": "A university's karate club has experienced a conflict between the instructor and the club president, resulting in the club splitting into two factions. The club administrator needs to identify the smallest group of key members who can mediate and monitor all social interactions within the club to prevent further conflicts. The club has 34 members with friendship relationships as follows: member 0 is friends with members 1 through 33; member 1 is friends with members 2, 3, 4, 8, 13, 17, 18, 20, 22, and 31; member 2 is friends with members 3, 8, 9, 13, 27, 28, 32, and 33; member 3 is friends with members 7, 12, and 13; member 4 is friends with members 6 and 10; member 5 is friends with members 6, 10, and 16; member 6 is friends with member 16; member 7 is friends with member 8; member 8 is friends with members 32 and 33; member 9 is friends with member 33; member 13 is friends with member 33; member 14 is friends with members 32 and 33; member 15 is friends with members 32 and 33; member 18 is friends with members 32 and 33; member 19 is friends with members 32 and 33; member 20 is friends with members 32 and 33; member 21 is friends with members 32 and 33; member 22 is friends with members 32 and 33; member 23 is friends with members 25, 27, 29, 32, and 33; member 24 is friends with members 25, 27, and 31; member 25 is friends with member 31; member 26 is friends with members 29 and 33; member 27 is friends with member 33; member 28 is friends with members 31 and 33; member 29 is friends with members 32 and 33; member 30 is friends with members 32 and 33; member 31 is friends with members 32 and 33; member 32 is friends with member 33. When a member is selected as a mediator, they can help oversee all their friendships. To ensure no conflicts go unnoticed, every friendship between two members should have at least one of them serving as a mediator. The administrator needs to determine which members should be selected as mediators to ensure complete coverage while using as few mediators as possible.\n\nPrint the following fields: - selected_vertices: members selected as mediators. - num_vertices_selected: total number of selected members.",
+    "reference_solution": {
+        "selected_vertices": [
+            0,
+            1,
+            2,
+            3,
+            6,
+            8,
+            10,
+            16,
+            23,
+            24,
+            26,
+            31,
+            32,
+            33
+        ],
+        "num_vertices_selected": 14
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef solve_vertex_cover():\n    N = 34\n    \n    E = set()\n    \n    for j in range(1, 34):\n        E.add((0, j))\n    \n    for j in [2, 3, 4, 8, 13, 17, 18, 20, 22, 31]:\n        E.add((1, j))\n    \n    for j in [3, 8, 9, 13, 27, 28, 32, 33]:\n        E.add((2, j))\n    \n    for j in [7, 12, 13]:\n        E.add((3, j))\n    \n    for j in [6, 10]:\n        E.add((4, j))\n    \n    for j in [6, 10, 16]:\n        E.add((5, j))\n    \n    for j in [16]:\n        E.add((6, j))\n    \n    for j in [8]:\n        E.add((7, j))\n    \n    for j in [32, 33]:\n        E.add((8, j))\n    \n    for j in [33]:\n        E.add((9, j))\n    \n    for j in [33]:\n        E.add((13, j))\n    \n    for j in [32, 33]:\n        E.add((14, j))\n    \n    for j in [32, 33]:\n        E.add((15, j))\n    \n    for j in [32, 33]:\n        E.add((18, j))\n    \n    for j in [32, 33]:\n        E.add((19, j))\n    \n    for j in [32, 33]:\n        E.add((20, j))\n    \n    for j in [32, 33]:\n        E.add((21, j))\n    \n    for j in [32, 33]:\n        E.add((22, j))\n    \n    for j in [25, 27, 29, 32, 33]:\n        E.add((23, j))\n    \n    for j in [25, 27, 31]:\n        E.add((24, j))\n    \n    for j in [31]:\n        E.add((25, j))\n    \n    for j in [29, 33]:\n        E.add((26, j))\n    \n    for j in [33]:\n        E.add((27, j))\n    \n    for j in [31, 33]:\n        E.add((28, j))\n    \n    for j in [32, 33]:\n        E.add((29, j))\n    \n    for j in [32, 33]:\n        E.add((30, j))\n    \n    for j in [32, 33]:\n        E.add((31, j))\n    \n    for j in [33]:\n        E.add((32, j))\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    if not solver:\n        print(json.dumps({\n            \"selected_vertices\": [],\n            \"num_vertices_selected\": 0\n        }))\n        return\n    \n    x = [solver.BoolVar(f\"x[{i}]\") for i in range(N)]\n    \n    for i, j in E:\n        solver.Add(x[i] + x[j] >= 1)\n    \n    solver.Minimize(sum(x[i] for i in range(N)))\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        selected_vertices = [i for i in range(N) if x[i].solution_value() > 0.5]\n        num_vertices_selected = len(selected_vertices)\n        print(json.dumps({\n            \"selected_vertices\": selected_vertices,\n            \"num_vertices_selected\": num_vertices_selected\n        }))\n    else:\n        print(json.dumps({\n            \"selected_vertices\": [],\n            \"num_vertices_selected\": 0\n        }))\n\nif __name__ == \"__main__\":\n    solve_vertex_cover()"
+}

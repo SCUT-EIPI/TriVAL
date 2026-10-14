@@ -1,0 +1,111 @@
+{
+    "problem_id": "open_shop_scheduling_003",
+    "problem_type": "Open Shop Scheduling Problem",
+    "difficulty": "hard",
+    "problem_description": "In an advanced biomedical research facility, nine distinct clinical research subjects each require nine specialized diagnostic examinations that must be conducted in designated imaging suites with specific temporal allocations. The principal investigator seeks to optimize the overall study timeline by determining the optimal temporal scheduling matrix for each examination to minimize the total study completion horizon across all concurrent subject assessments. \n\nThe system must adhere to several operational constraints: first, within any given subject diagnostic examinations must maintain mutual exclusion in temporal domains which means simultaneous examination activation within the same subject is prohibited; second, each imaging suite can accommodate only one subject examination at any temporal instant so temporal overlap of examinations within identical imaging suites is forbidden; third, unlike conventional clinical imaging workflows subject examinations exhibit permutation flexibility allowing arbitrary sequencing arrangements.\n\nThe diagnostic workflow specifications are:\nSubject Alpha requires Suite-8 for 95 minutes, then Suite-5 for 97 minutes, followed by Suite-4 for 36 minutes, then Suite-9 for 18 minutes, then Suite-6 for 36 minutes, then Suite-1 for 77 minutes, then Suite-7 for 50 minutes, then Suite-2 for 30 minutes, and finally Suite-3 for 51 minutes\nSubject Beta requires Suite-7 for 98 minutes, then Suite-6 for 26 minutes, followed by Suite-5 for 45 minutes, then Suite-4 for 88 minutes, then Suite-1 for 81 minutes, then Suite-8 for 3 minutes, then Suite-3 for 12 minutes, then Suite-9 for 90 minutes, and finally Suite-2 for 6 minutes\nSubject Gamma requires Suite-7 for 73 minutes, then Suite-9 for 87 minutes, followed by Suite-6 for 31 minutes, then Suite-4 for 46 minutes, then Suite-1 for 43 minutes, then Suite-3 for 53 minutes, then Suite-5 for 49 minutes, then Suite-8 for 39 minutes, and finally Suite-2 for 51 minutes\nSubject Delta requires Suite-8 for 4 minutes, then Suite-9 for 57 minutes, followed by Suite-5 for 93 minutes, then Suite-3 for 66 minutes, then Suite-1 for 75 minutes, then Suite-6 for 71 minutes, then Suite-4 for 13 minutes, then Suite-7 for 21 minutes, and finally Suite-2 for 2 minutes\nSubject Epsilon requires Suite-7 for 91 minutes, then Suite-8 for 15 minutes, followed by Suite-6 for 88 minutes, then Suite-2 for 14 minutes, then Suite-3 for 22 minutes, then Suite-1 for 67 minutes, then Suite-9 for 29 minutes, then Suite-4 for 65 minutes, and finally Suite-5 for 55 minutes\nSubject Zeta requires Suite-8 for 38 minutes, then Suite-1 for 45 minutes, followed by Suite-7 for 36 minutes, then Suite-2 for 96 minutes, then Suite-9 for 46 minutes, then Suite-4 for 51 minutes, then Suite-6 for 4 minutes, then Suite-3 for 59 minutes, and finally Suite-5 for 32 minutes\nSubject Eta requires Suite-2 for 84 minutes, then Suite-8 for 76 minutes, followed by Suite-4 for 28 minutes, then Suite-5 for 89 minutes, then Suite-3 for 33 minutes, then Suite-7 for 10 minutes, then Suite-6 for 6 minutes, then Suite-1 for 51 minutes, and finally Suite-9 for 3 minutes\nSubject Theta requires Suite-6 for 86 minutes, then Suite-2 for 68 minutes, followed by Suite-3 for 33 minutes, then Suite-5 for 82 minutes, then Suite-7 for 91 minutes, then Suite-8 for 87 minutes, then Suite-9 for 23 minutes, then Suite-1 for 87 minutes, and finally Suite-4 for 14 minutes\nSubject Iota requires Suite-6 for 17 minutes, then Suite-2 for 50 minutes, followed by Suite-8 for 23 minutes, then Suite-3 for 2 minutes, then Suite-5 for 4 minutes, then Suite-4 for 54 minutes, then Suite-7 for 18 minutes, then Suite-9 for 83 minutes, and finally Suite-1 for 16 minutes\n\nPrint the following fields: - start_times: start time for each subject's examination. - makespan: total study completion time.",
+    "reference_solution": {
+        "start_times": [
+            [
+                259,
+                480,
+                336,
+                423,
+                0,
+                387,
+                98,
+                154,
+                459
+            ],
+            [
+                162,
+                357,
+                143,
+                243,
+                98,
+                331,
+                0,
+                453,
+                363
+            ],
+            [
+                432,
+                217,
+                164,
+                87,
+                494,
+                133,
+                313,
+                268,
+                0
+            ],
+            [
+                87,
+                510,
+                0,
+                66,
+                314,
+                164,
+                407,
+                307,
+                235
+            ],
+            [
+                475,
+                96,
+                276,
+                331,
+                407,
+                0,
+                154,
+                139,
+                110
+            ],
+            [
+                387,
+                0,
+                217,
+                138,
+                462,
+                96,
+                277,
+                100,
+                313
+            ],
+            [
+                336,
+                110,
+                76,
+                194,
+                225,
+                325,
+                387,
+                0,
+                222
+            ],
+            [
+                0,
+                412,
+                110,
+                225,
+                143,
+                239,
+                480,
+                325,
+                87
+            ],
+            [
+                243,
+                277,
+                66,
+                0,
+                543,
+                100,
+                259,
+                76,
+                139
+            ]
+        ],
+        "makespan": 571
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport json\n\ndef main():\n    subjects = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota']\n    suites = ['1', '2', '3', '4', '5', '6', '7', '8', '9']\n    \n    duration = {\n        ('Alpha', '8'): 95, ('Alpha', '5'): 97, ('Alpha', '4'): 36, ('Alpha', '9'): 18,\n        ('Alpha', '6'): 36, ('Alpha', '1'): 77, ('Alpha', '7'): 50, ('Alpha', '2'): 30, ('Alpha', '3'): 51,\n        \n        ('Beta', '7'): 98, ('Beta', '6'): 26, ('Beta', '5'): 45, ('Beta', '4'): 88,\n        ('Beta', '1'): 81, ('Beta', '8'): 3, ('Beta', '3'): 12, ('Beta', '9'): 90, ('Beta', '2'): 6,\n        \n        ('Gamma', '7'): 73, ('Gamma', '9'): 87, ('Gamma', '6'): 31, ('Gamma', '4'): 46,\n        ('Gamma', '1'): 43, ('Gamma', '3'): 53, ('Gamma', '5'): 49, ('Gamma', '8'): 39, ('Gamma', '2'): 51,\n        \n        ('Delta', '8'): 4, ('Delta', '9'): 57, ('Delta', '5'): 93, ('Delta', '3'): 66,\n        ('Delta', '1'): 75, ('Delta', '6'): 71, ('Delta', '4'): 13, ('Delta', '7'): 21, ('Delta', '2'): 2,\n        \n        ('Epsilon', '7'): 91, ('Epsilon', '8'): 15, ('Epsilon', '6'): 88, ('Epsilon', '2'): 14,\n        ('Epsilon', '3'): 22, ('Epsilon', '1'): 67, ('Epsilon', '9'): 29, ('Epsilon', '4'): 65, ('Epsilon', '5'): 55,\n        \n        ('Zeta', '8'): 38, ('Zeta', '1'): 45, ('Zeta', '7'): 36, ('Zeta', '2'): 96,\n        ('Zeta', '9'): 46, ('Zeta', '4'): 51, ('Zeta', '6'): 4, ('Zeta', '3'): 59, ('Zeta', '5'): 32,\n        \n        ('Eta', '2'): 84, ('Eta', '8'): 76, ('Eta', '4'): 28, ('Eta', '5'): 89,\n        ('Eta', '3'): 33, ('Eta', '7'): 10, ('Eta', '6'): 6, ('Eta', '1'): 51, ('Eta', '9'): 3,\n        \n        ('Theta', '6'): 86, ('Theta', '2'): 68, ('Theta', '3'): 33, ('Theta', '5'): 82,\n        ('Theta', '7'): 91, ('Theta', '8'): 87, ('Theta', '9'): 23, ('Theta', '1'): 87, ('Theta', '4'): 14,\n        \n        ('Iota', '6'): 17, ('Iota', '2'): 50, ('Iota', '8'): 23, ('Iota', '3'): 2,\n        ('Iota', '5'): 4, ('Iota', '4'): 54, ('Iota', '7'): 18, ('Iota', '9'): 83, ('Iota', '1'): 16\n    }\n    \n    model = cp_model.CpModel()\n    total_duration = sum(duration.values())\n    \n    start = {}\n    end = {}\n    intervals = {}\n    \n    for s in subjects:\n        for r in suites:\n            d = duration[(s, r)]\n            start[(s, r)] = model.NewIntVar(0, total_duration, f'start_{s}_{r}')\n            end[(s, r)] = model.NewIntVar(0, total_duration, f'end_{s}_{r}')\n            model.Add(end[(s, r)] == start[(s, r)] + d)\n            intervals[(s, r)] = model.NewIntervalVar(start[(s, r)], d, end[(s, r)], f'interval_{s}_{r}')\n    \n    makespan = model.NewIntVar(0, total_duration, 'makespan')\n    \n    for s in subjects:\n        model.AddNoOverlap([intervals[(s, r)] for r in suites])\n    for r in suites:\n        model.AddNoOverlap([intervals[(s, r)] for s in subjects])\n    for s in subjects:\n        for r in suites:\n            model.Add(end[(s, r)] <= makespan)\n    \n    model.Minimize(makespan)\n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 60.0\n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        start_times = []\n        for s in subjects:\n            subject_row = []\n            for r in suites:\n                subject_row.append(solver.Value(start[(s, r)]))\n            start_times.append(subject_row)\n        print(json.dumps({\"start_times\": start_times, \"makespan\": solver.Value(makespan)}))\n\nif __name__ == '__main__':\n    main()\n"
+}

@@ -1,0 +1,50 @@
+{
+    "problem_id": "location_routing_problem_002",
+    "problem_type": "Location-Routing Problem",
+    "difficulty": "medium",
+    "problem_description": "A fast-growing food delivery startup needs to establish kitchen hubs and delivery routes for serving 10 neighborhoods in a city. All locations are measured in kilometers from the city center. All locations are directly accessible from each other. The startup has identified 3 potential locations for kitchen hubs: Location (30, 30) with setup cost $1000 and capacity 80 meals, Location (70, 50) with setup cost $1200 and capacity 90 meals, and Location (50, 70) with setup cost $1500 and capacity 100 meals. Each kitchen hub's daily cooking capacity cannot be exceeded. The 10 neighborhoods are located at different coordinates across the city with specific daily meal order volumes that must be exactly met: Neighborhood 1 at (25, 35) needs 15 meals daily, Neighborhood 2 at (45, 65) needs 12 meals daily, Neighborhood 3 at (65, 25) needs 18 meals daily, Neighborhood 4 at (85, 75) needs 10 meals daily, Neighborhood 5 at (15, 85) needs 14 meals daily, Neighborhood 6 at (75, 15) needs 16 meals daily, Neighborhood 7 at (35, 55) needs 13 meals daily, Neighborhood 8 at (55, 45) needs 11 meals daily, Neighborhood 9 at (95, 35) needs 17 meals daily, and Neighborhood 10 at (25, 75) needs 19 meals daily. The company uses delivery vehicles that can transport up to 40 meals per trip, with each vehicle costing $200 to operate per day plus $8 per kilometer of travel distance. Each delivery vehicle must start from its assigned kitchen hub, serve its designated neighborhoods, and return to the same hub, ensuring every neighborhood is served exactly once. The total cost includes kitchen setup costs, vehicle operating costs, and transportation costs. The startup needs to decide which kitchen hubs to open and how to organize delivery routes to serve all neighborhoods with minimal total cost.\n\nPrint the following fields: - opened_kitchens: which kitchen hubs are open. - delivery_routes: delivery routes for each vehicle with kitchen, neighborhoods, and meals. - total_cost: total cost including setup and transportation.",
+    "reference_solution": {
+        "opened_kitchens": [
+            0,
+            1
+        ],
+        "delivery_routes": [
+            [
+                0,
+                [
+                    4,
+                    9
+                ],
+                33
+            ],
+            [
+                0,
+                [
+                    0,
+                    1,
+                    6
+                ],
+                40
+            ],
+            [
+                1,
+                [
+                    3,
+                    7,
+                    8
+                ],
+                38
+            ],
+            [
+                1,
+                [
+                    2,
+                    5
+                ],
+                34
+            ]
+        ],
+        "total_cost": 6204.01131078186
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nfrom ortools.constraint_solver import pywrapcp, routing_enums_pb2\nimport math\nimport json\n\ndef euclidean_distance(coord1, coord2):\n    return math.sqrt((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)\n\ndef main():\n    model = cp_model.CpModel()\n\n    K = [0, 1, 2]\n    coord_k = {0: (30, 30), 1: (70, 50), 2: (50, 70)}\n    setup_cost = {0: 1000, 1: 1200, 2: 1500}\n    capacity = {0: 80, 1: 90, 2: 100}\n\n    N = list(range(10))\n    coord_n = {\n        0: (25, 35), 1: (45, 65), 2: (65, 25), 3: (85, 75), 4: (15, 85),\n        5: (75, 15), 6: (35, 55), 7: (55, 45), 8: (95, 35), 9: (25, 75)\n    }\n    demand = {0: 15, 1: 12, 2: 18, 3: 10, 4: 14, 5: 16, 6: 13, 7: 11, 8: 17, 9: 19}\n\n    vehicle_cap = 40\n    vehicle_fixed_cost = 200\n    transport_cost_per_km = 8\n\n    total_demand = sum(demand.values())\n    V_max = math.ceil(total_demand / vehicle_cap)\n\n    dist_kn = {(k, i): euclidean_distance(coord_k[k], coord_n[i]) for k in K for i in N}\n    dist_nn = {(i, j): euclidean_distance(coord_n[i], coord_n[j]) for i in N for j in N if i != j}\n\n    open_var = {k: model.NewBoolVar(f\"open_{k}\") for k in K}\n    assign = {(i, k): model.NewBoolVar(f\"assign_{i}_{k}\") for i in N for k in K}\n    route_assign = {(i, k, v): model.NewBoolVar(f\"ra_{i}_{k}_{v}\")\n                    for i in N for k in K for v in range(V_max)}\n    vehicle_used = {(k, v): model.NewBoolVar(f\"vu_{k}_{v}\")\n                    for k in K for v in range(V_max)}\n    x = {(i, j, k, v): model.NewBoolVar(f\"x_{i}_{j}_{k}_{v}\")\n         for i in N for j in N if i != j for k in K for v in range(V_max)}\n    y_out = {(k, i, v): model.NewBoolVar(f\"yo_{k}_{i}_{v}\")\n             for k in K for i in N for v in range(V_max)}\n    y_in = {(k, i, v): model.NewBoolVar(f\"yi_{k}_{i}_{v}\")\n            for k in K for i in N for v in range(V_max)}\n\n    for i in N:\n        model.Add(sum(assign[(i, k)] for k in K) == 1)\n\n    for k in K:\n        model.Add(sum(demand[i] * assign[(i, k)] for i in N) <= capacity[k] * open_var[k])\n\n    for i in N:\n        for k in K:\n            model.Add(assign[(i, k)] <= open_var[k])\n\n    for i in N:\n        for k in K:\n            model.Add(assign[(i, k)] == sum(route_assign[(i, k, v)] for v in range(V_max)))\n\n    for k in K:\n        for v in range(V_max):\n            for i in N:\n                model.Add(vehicle_used[(k, v)] >= route_assign[(i, k, v)])\n            model.Add(vehicle_used[(k, v)] <= sum(route_assign[(i, k, v)] for i in N))\n            model.Add(vehicle_used[(k, v)] <= open_var[k])\n            model.Add(sum(demand[i] * route_assign[(i, k, v)] for i in N) <= vehicle_cap * vehicle_used[(k, v)])\n\n    for i in N:\n        for k in K:\n            for v in range(V_max):\n                left = [y_out[(k, i, v)]] + [x[(j, i, k, v)] for j in N if j != i]\n                right = [y_in[(k, i, v)]] + [x[(i, j, k, v)] for j in N if j != i]\n                model.Add(sum(left) == route_assign[(i, k, v)])\n                model.Add(sum(right) == route_assign[(i, k, v)])\n\n    for k in K:\n        for v in range(V_max):\n            model.Add(sum(y_out[(k, i, v)] for i in N) == vehicle_used[(k, v)])\n            model.Add(sum(y_in[(k, i, v)] for i in N) == vehicle_used[(k, v)])\n\n    for i in N:\n        for j in N:\n            if i != j:\n                for k in K:\n                    for v in range(V_max):\n                        model.Add(x[(i, j, k, v)] <= route_assign[(i, k, v)])\n                        model.Add(x[(i, j, k, v)] <= route_assign[(j, k, v)])\n\n    big_M = len(N) + 1\n    u = {(i, k, v): model.NewIntVar(0, big_M, f\"u_{i}_{k}_{v}\")\n         for i in N for k in K for v in range(V_max)}\n    for i in N:\n        for j in N:\n            if i != j:\n                for k in K:\n                    for v in range(V_max):\n                        model.Add(u[(i, k, v)] - u[(j, k, v)] + big_M * x[(i, j, k, v)] <= big_M - 1)\n    for i in N:\n        for k in K:\n            for v in range(V_max):\n                model.Add(u[(i, k, v)] <= big_M * route_assign[(i, k, v)])\n\n    SCALE = 1000\n    setup_terms = [int(setup_cost[k] * SCALE) * open_var[k] for k in K]\n    vehicle_terms = [int(vehicle_fixed_cost * SCALE) * vehicle_used[(k, v)]\n                     for k in K for v in range(V_max)]\n    transport_terms = []\n    for k in K:\n        for i in N:\n            for v in range(V_max):\n                d = int(round(transport_cost_per_km * dist_kn[(k, i)] * SCALE))\n                transport_terms.append(d * y_out[(k, i, v)])\n                transport_terms.append(d * y_in[(k, i, v)])\n    for i in N:\n        for j in N:\n            if i != j:\n                for k in K:\n                    for v in range(V_max):\n                        d = int(round(transport_cost_per_km * dist_nn[(i, j)] * SCALE))\n                        transport_terms.append(d * x[(i, j, k, v)])\n\n    model.Minimize(sum(setup_terms) + sum(vehicle_terms) + sum(transport_terms))\n\n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 60.0\n    solver.parameters.num_search_workers = 8\n    status = solver.Solve(model)\n\n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        opened_kitchens = [k for k in K if solver.Value(open_var[k]) == 1]\n\n        delivery_routes = []\n        for k in K:\n            for v in range(V_max):\n                if solver.Value(vehicle_used[(k, v)]) == 1:\n                    nbhoods = [i for i in N if solver.Value(route_assign[(i, k, v)]) == 1]\n                    if nbhoods:\n                        meals = sum(demand[i] for i in nbhoods)\n                        delivery_routes.append([k, nbhoods, meals])\n\n        total_cost = sum(setup_cost[k] for k in opened_kitchens)\n        total_cost += vehicle_fixed_cost * sum(\n            solver.Value(vehicle_used[(k, v)]) for k in K for v in range(V_max))\n        for k in K:\n            for i in N:\n                for v in range(V_max):\n                    if solver.Value(y_out[(k, i, v)]) == 1:\n                        total_cost += transport_cost_per_km * dist_kn[(k, i)]\n                    if solver.Value(y_in[(k, i, v)]) == 1:\n                        total_cost += transport_cost_per_km * dist_kn[(k, i)]\n        for i in N:\n            for j in N:\n                if i != j:\n                    for k in K:\n                        for v in range(V_max):\n                            if solver.Value(x[(i, j, k, v)]) == 1:\n                                total_cost += transport_cost_per_km * dist_nn[(i, j)]\n\n        print(json.dumps({\n            \"opened_kitchens\": opened_kitchens,\n            \"delivery_routes\": delivery_routes,\n            \"total_cost\": round(total_cost, 11)\n        }))\n    else:\n        print(json.dumps({\"opened_kitchens\": [], \"delivery_routes\": [], \"total_cost\": 0.0}))\n\nif __name__ == \"__main__\":\n    main()\n"
+}

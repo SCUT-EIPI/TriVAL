@@ -1,0 +1,38 @@
+{
+    "problem_id": "mdmkp_002",
+    "problem_type": "Multi-Demand Multidimensional Knapsack Problem",
+    "difficulty": "medium",
+    "problem_description": "A non-profit organization is planning its community outreach initiatives for the upcoming quarter. They have identified 20 potential activities they could undertake, each with different resource requirements and expected outcomes. They have a total budget of $2,500, 2,000 available volunteer hours, and 700 equipment units at their disposal. To ensure meaningful community involvement, they want to achieve at least 1,200 engagement points across all selected activities. The organization needs to decide which activities to pursue to maximize their total social impact while staying within their resource constraints and meeting the minimum engagement requirement. Each activity can either be selected or not - there are no partial selections possible. Here are the details for each activity: 1. Activity 1: costs $200, requires 150 volunteer hours, needs 50 equipment units, generates 80 engagement points, and has an impact score of 300. 2. Activity 2: costs $150, requires 100 volunteer hours, needs 40 equipment units, generates 90 engagement points, and has an impact score of 250. 3. Activity 3: costs $250, requires 200 volunteer hours, needs 70 equipment units, generates 70 engagement points, and has an impact score of 350. 4. Activity 4: costs $180, requires 120 volunteer hours, needs 45 equipment units, generates 100 engagement points, and has an impact score of 280. 5. Activity 5: costs $220, requires 180 volunteer hours, needs 60 equipment units, generates 85 engagement points, and has an impact score of 320. 6. Activity 6: costs $190, requires 160 volunteer hours, needs 55 equipment units, generates 95 engagement points, and has an impact score of 290. 7. Activity 7: costs $170, requires 140 volunteer hours, needs 48 equipment units, generates 75 engagement points, and has an impact score of 270. 8. Activity 8: costs $210, requires 190 volunteer hours, needs 65 equipment units, generates 88 engagement points, and has an impact score of 310. 9. Activity 9: costs $160, requires 110 volunteer hours, needs 42 equipment units, generates 92 engagement points, and has an impact score of 260. 10. Activity 10: costs $230, requires 170 volunteer hours, needs 68 equipment units, generates 78 engagement points, and has an impact score of 330. 11. Activity 11: costs $140, requires 90 volunteer hours, needs 35 equipment units, generates 105 engagement points, and has an impact score of 240. 12. Activity 12: costs $260, requires 210 volunteer hours, needs 75 equipment units, generates 65 engagement points, and has an impact score of 360. 13. Activity 13: costs $130, requires 80 volunteer hours, needs 30 equipment units, generates 110 engagement points, and has an impact score of 230. 14. Activity 14: costs $240, requires 180 volunteer hours, needs 72 equipment units, generates 82 engagement points, and has an impact score of 340. 15. Activity 15: costs $120, requires 70 volunteer hours, needs 25 equipment units, generates 120 engagement points, and has an impact score of 220. 16. Activity 16: costs $270, requires 220 volunteer hours, needs 80 equipment units, generates 60 engagement points, and has an impact score of 370. 17. Activity 17: costs $110, requires 60 volunteer hours, needs 20 equipment units, generates 125 engagement points, and has an impact score of 210. 18. Activity 18: costs $280, requires 230 volunteer hours, needs 85 equipment units, generates 55 engagement points, and has an impact score of 380. 19. Activity 19: costs $100, requires 50 volunteer hours, needs 15 equipment units, generates 130 engagement points, and has an impact score of 200. 20. Activity 20: costs $290, requires 240 volunteer hours, needs 90 equipment units, generates 50 engagement points, and has an impact score of 390.\n\nPrint the following fields: - selected_vectors: selection status for each activity. - total_transformation: total impact score. - total_constraints: list resource usage with budget spent, volunteer hours, equipment used, engagement achieved.",
+    "reference_solution": {
+        "selected_vectors": [
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0
+        ],
+        "total_transformation": 3900,
+        "total_constraints": [
+            2500,
+            1850,
+            675,
+            1315
+        ]
+    },
+    "solver_code": "from ortools.linear_solver import pywraplp\nimport json\n\ndef main():\n    N = 20\n    \n    cost = [200, 150, 250, 180, 220, 190, 170, 210, 160, 230, \n            140, 260, 130, 240, 120, 270, 110, 280, 100, 290]\n    \n    volunteer = [150, 100, 200, 120, 180, 160, 140, 190, 110, 170,\n                 90, 210, 80, 180, 70, 220, 60, 230, 50, 240]\n    \n    equipment = [50, 40, 70, 45, 60, 55, 48, 65, 42, 68,\n                 35, 75, 30, 72, 25, 80, 20, 85, 15, 90]\n    \n    engagement = [80, 90, 70, 100, 85, 95, 75, 88, 92, 78,\n                  105, 65, 110, 82, 120, 60, 125, 55, 130, 50]\n    \n    impact = [300, 250, 350, 280, 320, 290, 270, 310, 260, 330,\n              240, 360, 230, 340, 220, 370, 210, 380, 200, 390]\n    \n    budget_max = 2500\n    volunteer_max = 2000\n    equipment_max = 700\n    engagement_min = 1200\n    \n    solver = pywraplp.Solver.CreateSolver(\"SCIP\")\n    if not solver:\n        return\n    \n    x = [solver.BoolVar(f\"x[{i}]\") for i in range(N)]\n    \n    solver.Add(sum(cost[i] * x[i] for i in range(N)) <= budget_max)\n    \n    solver.Add(sum(volunteer[i] * x[i] for i in range(N)) <= volunteer_max)\n    \n    solver.Add(sum(equipment[i] * x[i] for i in range(N)) <= equipment_max)\n    \n    solver.Add(sum(engagement[i] * x[i] for i in range(N)) >= engagement_min)\n    \n    objective = solver.Objective()\n    for i in range(N):\n        objective.SetCoefficient(x[i], impact[i])\n    objective.SetMaximization()\n    \n    status = solver.Solve()\n    \n    if status == pywraplp.Solver.OPTIMAL:\n        selected_vectors = [int(x[i].solution_value()) for i in range(N)]\n        \n        total_transformation = solver.Objective().Value()\n        \n        total_cost = sum(cost[i] * selected_vectors[i] for i in range(N))\n        total_volunteer = sum(volunteer[i] * selected_vectors[i] for i in range(N))\n        total_equipment = sum(equipment[i] * selected_vectors[i] for i in range(N))\n        total_engagement = sum(engagement[i] * selected_vectors[i] for i in range(N))\n        \n        print(json.dumps({\n            \"selected_vectors\": selected_vectors,\n            \"total_transformation\": int(total_transformation),\n            \"total_constraints\": [\n                total_cost,\n                total_volunteer,\n                total_equipment,\n                total_engagement\n            ]\n        }))\n    else:\n        print(json.dumps({\n            \"selected_vectors\": [],\n            \"total_transformation\": 0,\n            \"total_constraints\": []\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

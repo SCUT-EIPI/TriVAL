@@ -1,0 +1,101 @@
+{
+    "problem_id": "k_shortest_paths_003",
+    "problem_type": "k-Shortest Paths Problem",
+    "difficulty": "hard",
+    "problem_description": "A national water supply company operates a pipeline network with 30 pumping stations: a main water treatment plant, 28 intermediate pumping stations, and a major metropolitan area. The network contains 50 directed pipeline connections with varying pressure loss rates. From the main plant, lines connect to stations 1, 2, and 3 with losses of 3%, 5%, and 2% respectively. The first tier of stations 1, 2, and 3 each connect to two second-tier stations: station 1 connects to stations 4 and 5 with 4% and 3% loss, station 2 connects to stations 6 and 7 with 2% and 6% loss, and station 3 connects to stations 8 and 9 with 3% and 4% loss. The second tier continues branching: station 4 connects to stations 10 and 11 with 2% and 5% loss, station 5 connects to stations 12 and 13 with 3% and 4% loss, station 6 connects to stations 14 and 15 with 2% and 3% loss, and station 7 connects to stations 16 and 17 with 4% and 5% loss. The third tier expands further: station 8 connects to stations 18 and 19 with 3% and 2% loss, station 9 connects to stations 20 and 21 with 4% and 3% loss, station 10 connects to stations 22 and 23 with 2% and 5% loss, station 11 connects to stations 24 and 25 with 3% and 4% loss, station 12 connects to stations 26 and 27 with 2% and 3% loss, and station 13 connects to station 28 with 4% loss and directly to the metropolitan area with 2% loss. Cross-connections exist between different tiers: station 14 connects to station 22 with 3% loss, station 15 connects to station 23 with 4% loss, station 16 connects to station 24 with 2% loss, station 17 connects to station 25 with 5% loss, station 18 connects to station 26 with 3% loss, station 19 connects to station 27 with 4% loss, station 20 connects to station 28 with 2% loss, station 21 connects directly to the metropolitan area with 3% loss, station 22 connects to station 26 with 4% loss, station 23 connects to station 27 with 2% loss, station 24 connects to station 28 with 3% loss, and station 25 connects to the metropolitan area with 4% loss. Additional backup connections include station 1 to station 6 with 5% loss, station 2 to station 8 with 4% loss, station 3 to station 7 with 3% loss, station 4 to station 12 with 6% loss, station 5 to station 13 with 2% loss, station 14 to station 18 with 3% loss, station 15 to station 19 with 4% loss, station 16 to station 20 with 2% loss, station 17 to station 21 with 5% loss, station 22 to station 28 with 3% loss, station 23 to the metropolitan area with 4% loss. Each valid distribution route must follow the water flow direction, start at the main plant, end at the metropolitan area, and visit each station at most once. The company needs to find exactly 10 distinct distribution routes ranked from lowest to highest total pressure loss to ensure reliable water supply and provide backup options.\n\nPrint the following fields: - paths: water distribution routes from treatment plant to metropolitan area. - total_pressure_losses: total pressure loss percentage for each route.",
+    "reference_solution": {
+        "paths": [
+            [
+                0,
+                1,
+                5,
+                13,
+                29
+            ],
+            [
+                0,
+                3,
+                9,
+                21,
+                29
+            ],
+            [
+                0,
+                1,
+                4,
+                10,
+                23,
+                29
+            ],
+            [
+                0,
+                3,
+                7,
+                17,
+                21,
+                29
+            ],
+            [
+                0,
+                2,
+                6,
+                15,
+                23,
+                29
+            ],
+            [
+                0,
+                1,
+                6,
+                15,
+                23,
+                29
+            ],
+            [
+                0,
+                3,
+                7,
+                17,
+                25,
+                29
+            ],
+            [
+                0,
+                1,
+                4,
+                11,
+                25,
+                29
+            ],
+            [
+                0,
+                2,
+                7,
+                17,
+                21,
+                29
+            ],
+            [
+                0,
+                2,
+                7,
+                17,
+                25,
+                29
+            ]
+        ],
+        "total_pressure_losses": [
+            10,
+            12,
+            18,
+            18,
+            18,
+            19,
+            19,
+            20,
+            24,
+            25
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    stations = ['source'] + [str(i) for i in range(1, 29)] + ['destination']\n    station_set = set(stations)\n    \n    arcs = {\n        ('source', '1'): 3,\n        ('source', '2'): 5,\n        ('source', '3'): 2,\n        ('1', '4'): 4,\n        ('1', '5'): 3,\n        ('2', '6'): 2,\n        ('2', '7'): 6,\n        ('3', '8'): 3,\n        ('3', '9'): 4,\n        ('4', '10'): 2,\n        ('4', '11'): 5,\n        ('5', '12'): 3,\n        ('5', '13'): 4,\n        ('6', '14'): 2,\n        ('6', '15'): 3,\n        ('7', '16'): 4,\n        ('7', '17'): 5,\n        ('8', '18'): 3,\n        ('8', '19'): 2,\n        ('9', '20'): 4,\n        ('9', '21'): 3,\n        ('10', '22'): 2,\n        ('10', '23'): 5,\n        ('11', '24'): 3,\n        ('11', '25'): 4,\n        ('12', '26'): 2,\n        ('12', '27'): 3,\n        ('13', '28'): 4,\n        ('13', 'destination'): 2,\n        ('14', '22'): 3,\n        ('15', '23'): 4,\n        ('16', '24'): 2,\n        ('17', '25'): 5,\n        ('18', '26'): 3,\n        ('19', '27'): 4,\n        ('20', '28'): 2,\n        ('21', 'destination'): 3,\n        ('22', '26'): 4,\n        ('23', '27'): 2,\n        ('24', '28'): 3,\n        ('25', 'destination'): 4,\n        ('1', '6'): 5,\n        ('2', '8'): 4,\n        ('3', '7'): 3,\n        ('4', '12'): 6,\n        ('5', '13'): 2,\n        ('14', '18'): 3,\n        ('15', '19'): 4,\n        ('16', '20'): 2,\n        ('17', '21'): 5,\n        ('22', '28'): 3,\n        ('23', 'destination'): 4\n    }\n    \n    num_routes = 10\n    \n    model = cp_model.CpModel()\n    \n    x = {}\n    y = {}\n    route_loss = {}\n    \n    for r in range(num_routes):\n        route_loss[r] = model.NewIntVar(0, 1000, f'route_loss[{r}]')\n        \n        for i in stations:\n            y[(r, i)] = model.NewBoolVar(f'y[{r},{i}]')\n        \n        for (i, j) in arcs:\n            x[(r, i, j)] = model.NewBoolVar(f'x[{r},{i},{j}]')\n    \n    for r in range(num_routes):\n        model.Add(y[(r, 'source')] == 1)\n        \n        model.Add(y[(r, 'destination')] == 1)\n        \n        source_outgoing = [x[(r, 'source', j)] for j in stations if ('source', j) in arcs]\n        model.Add(sum(source_outgoing) == 1)\n        \n        destination_incoming = [x[(r, i, 'destination')] for i in stations if (i, 'destination') in arcs]\n        model.Add(sum(destination_incoming) == 1)\n        \n        for i in stations:\n            if i == 'source' or i == 'destination':\n                continue\n                \n            incoming_arcs = [x[(r, k, i)] for k in stations if (k, i) in arcs]\n            outgoing_arcs = [x[(r, i, j)] for j in stations if (i, j) in arcs]\n            \n            model.Add(sum(incoming_arcs) == y[(r, i)])\n            model.Add(sum(outgoing_arcs) == y[(r, i)])\n        \n        loss_terms = []\n        for (i, j), loss_val in arcs.items():\n            loss_contrib = model.NewIntVar(0, loss_val, f'loss_contrib[{r},{i},{j}]')\n            model.Add(loss_contrib == loss_val * x[(r, i, j)])\n            loss_terms.append(loss_contrib)\n        \n        model.Add(route_loss[r] == sum(loss_terms))\n    \n    for r1 in range(num_routes):\n        for r2 in range(r1 + 1, num_routes):\n            diff_vars = []\n            for i in stations:\n                diff = model.NewBoolVar(f'diff[{r1},{r2},{i}]')\n                model.AddBoolXOr([y[(r1, i)], y[(r2, i)], diff.Not()])\n                model.AddBoolXOr([y[(r1, i)].Not(), y[(r2, i)].Not(), diff.Not()])\n                diff_vars.append(diff)\n            model.Add(sum(diff_vars) >= 1)\n    \n    for r in range(num_routes - 1):\n        model.Add(route_loss[r] <= route_loss[r + 1])\n    \n    total_loss = sum(route_loss[r] for r in range(num_routes))\n    model.Minimize(total_loss)\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 60.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        paths = []\n        total_pressure_losses = []\n        \n        for r in range(num_routes):\n            current = 'source'\n            path = ['source']\n            max_steps = len(stations)\n            \n            for _ in range(max_steps):\n                if current == 'destination':\n                    break\n                    \n                found_next = False\n                for j in stations:\n                    if (current, j) in arcs and solver.Value(x[(r, current, j)]) == 1:\n                        path.append(j)\n                        current = j\n                        found_next = True\n                        break\n                \n                if not found_next:\n                    path.append(\"error\")\n                    break\n            \n            paths.append(path)\n            total_pressure_losses.append(solver.Value(route_loss[r]))\n        \n        station_to_id = {'source': 0, 'destination': 29}\n        for i in range(1, 29):\n            station_to_id[str(i)] = i\n        \n        numeric_paths = []\n        for path in paths:\n            numeric_path = [station_to_id[node] for node in path]\n            numeric_paths.append(numeric_path)\n        \n        print(json.dumps({\n            \"paths\": numeric_paths,\n            \"total_pressure_losses\": total_pressure_losses\n        }))\n        \n    else:\n        print(json.dumps({\n            \"paths\": [],\n            \"total_pressure_losses\": []\n        }))\n\nif __name__ == '__main__':\n    main()"
+}

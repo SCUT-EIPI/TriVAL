@@ -1,0 +1,90 @@
+{
+    "problem_id": "constrained_non_guillotine_cutting_003",
+    "problem_type": "Constrained Non-Guillotine Cutting Problem",
+    "difficulty": "hard",
+    "problem_description": "Mike is organizing his storage room and needs to arrange various boxes on a 10x10 foot floor space. He has the following boxes to store:\n\n1. Box Type 1 (Long storage boxes): 5x2 feet, requires at least 1 but no more than 2, utility value 28 points\n2. Box Type 2 (Medium cubic boxes): 3x3 feet, can use up to 2, utility value 40 points\n3. Box Type 3 (Large square containers): 4x4 feet, can use up to 1, utility value 63 points\n4. Box Type 4 (Small organizing boxes): 2x2 feet, needs at least 1 but can use up to 4, utility value 13 points\n5. Box Type 5 (Standard rectangular boxes): 3x2 feet, can use up to 2, utility value 31 points\n6. Box Type 6 (Flat storage boxes): 4x1 feet, can use up to 1, utility value 10 points\n7. Box Type 7 (Medium storage bins): 4x3 feet, can use up to 1, utility value 44 points\n\nEach box can be placed either in its original orientation or rotated by 90 degrees. All boxes must be placed completely within the 10x10 foot floor space and cannot overlap with each other. Mike wants to know how to arrange these boxes to achieve the maximum total utility value while making the most efficient use of his available storage space.\n\nPrint the following fields: - total_utility_value: total utility value of placed boxes. - box_placements: for each box, list placements with box type, x, y, rotation.",
+    "reference_solution": {
+        "total_utility_value": 367,
+        "box_placements": [
+            [
+                1,
+                0,
+                5,
+                1
+            ],
+            [
+                1,
+                5,
+                0,
+                0
+            ],
+            [
+                2,
+                2,
+                0,
+                1
+            ],
+            [
+                2,
+                7,
+                7,
+                1
+            ],
+            [
+                3,
+                2,
+                3,
+                1
+            ],
+            [
+                4,
+                0,
+                0,
+                1
+            ],
+            [
+                4,
+                8,
+                2,
+                1
+            ],
+            [
+                4,
+                2,
+                7,
+                1
+            ],
+            [
+                4,
+                6,
+                2,
+                1
+            ],
+            [
+                5,
+                0,
+                2,
+                1
+            ],
+            [
+                5,
+                4,
+                7,
+                0
+            ],
+            [
+                6,
+                2,
+                9,
+                0
+            ],
+            [
+                7,
+                6,
+                4,
+                0
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    W = 10\n    H = 10\n    \n    T = [1, 2, 3, 4, 5, 6, 7]\n    \n    length = {1: 5, 2: 3, 3: 4, 4: 2, 5: 3, 6: 4, 7: 4}\n    width = {1: 2, 2: 3, 3: 4, 4: 2, 5: 2, 6: 1, 7: 3}\n    \n    min_qty = {1: 1, 2: 0, 3: 0, 4: 1, 5: 0, 6: 0, 7: 0}\n    max_qty = {1: 2, 2: 2, 3: 1, 4: 4, 5: 2, 6: 1, 7: 1}\n    \n    utility = {1: 28, 2: 40, 3: 63, 4: 13, 5: 31, 6: 10, 7: 44}\n    \n    model = cp_model.CpModel()\n    \n    place = {}\n    x = {}\n    y = {}\n    rot = {}\n    \n    for t in T:\n        place[t] = []\n        x[t] = []\n        y[t] = []\n        rot[t] = []\n        \n        for i in range(max_qty[t]):\n            place_var = model.NewBoolVar(f\"place_{t}_{i}\")\n            x_var = model.NewIntVar(0, W, f\"x_{t}_{i}\")\n            y_var = model.NewIntVar(0, H, f\"y_{t}_{i}\")\n            rot_var = model.NewBoolVar(f\"rot_{t}_{i}\")\n            \n            place[t].append(place_var)\n            x[t].append(x_var)\n            y[t].append(y_var)\n            rot[t].append(rot_var)\n    \n    for t in T:\n        placed_sum = sum(place[t][i] for i in range(max_qty[t]))\n        model.Add(placed_sum >= min_qty[t])\n        model.Add(placed_sum <= max_qty[t])\n    \n    w_var = {}\n    h_var = {}\n    \n    for t in T:\n        w_var[t] = []\n        h_var[t] = []\n        for i in range(max_qty[t]):\n            w = model.NewIntVar(0, max(length[t], width[t]), f\"w_{t}_{i}\")\n            model.Add(w == length[t]).OnlyEnforceIf(rot[t][i].Not())\n            model.Add(w == width[t]).OnlyEnforceIf(rot[t][i])\n            \n            h = model.NewIntVar(0, max(length[t], width[t]), f\"h_{t}_{i}\")\n            model.Add(h == width[t]).OnlyEnforceIf(rot[t][i].Not())\n            model.Add(h == length[t]).OnlyEnforceIf(rot[t][i])\n            \n            w_var[t].append(w)\n            h_var[t].append(h)\n    \n    for t in T:\n        for i in range(max_qty[t]):\n            model.Add(x[t][i] + w_var[t][i] <= W).OnlyEnforceIf(place[t][i])\n            model.Add(y[t][i] + h_var[t][i] <= H).OnlyEnforceIf(place[t][i])\n    \n    all_boxes = []\n    for t in T:\n        for i in range(max_qty[t]):\n            all_boxes.append((t, i))\n    \n    for idx1, (t1, i1) in enumerate(all_boxes):\n        for idx2, (t2, i2) in enumerate(all_boxes):\n            if idx1 >= idx2:\n                continue\n            \n            left = model.NewBoolVar(f\"left_{t1}_{i1}_{t2}_{i2}\")\n            right = model.NewBoolVar(f\"right_{t1}_{i1}_{t2}_{i2}\")\n            below = model.NewBoolVar(f\"below_{t1}_{i1}_{t2}_{i2}\")\n            above = model.NewBoolVar(f\"above_{t1}_{i1}_{t2}_{i2}\")\n            \n            model.Add(x[t1][i1] + w_var[t1][i1] <= x[t2][i2]).OnlyEnforceIf(left)\n            model.Add(x[t2][i2] + w_var[t2][i2] <= x[t1][i1]).OnlyEnforceIf(right)\n            model.Add(y[t1][i1] + h_var[t1][i1] <= y[t2][i2]).OnlyEnforceIf(below)\n            model.Add(y[t2][i2] + h_var[t2][i2] <= y[t1][i1]).OnlyEnforceIf(above)\n            \n            model.AddBoolOr([\n                place[t1][i1].Not(),\n                place[t2][i2].Not(),\n                left, right, below, above\n            ])\n    \n    objective_terms = []\n    for t in T:\n        for i in range(max_qty[t]):\n            objective_terms.append(place[t][i] * utility[t])\n    \n    model.Maximize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        total_utility_value = 0\n        box_placements = []\n        \n        for t in T:\n            for i in range(max_qty[t]):\n                if solver.Value(place[t][i]):\n                    x_val = solver.Value(x[t][i])\n                    y_val = solver.Value(y[t][i])\n                    rot_val = solver.Value(rot[t][i])\n                    total_utility_value += utility[t]\n                    box_placements.append([t, x_val, y_val, rot_val])\n        \n        print(json.dumps({\n            \"total_utility_value\": total_utility_value,\n            \"box_placements\": box_placements\n        }, separators=(',', ':')))\n    else:\n        print(json.dumps({\n            \"total_utility_value\": 0,\n            \"box_placements\": []\n        }, separators=(',', ':')))\n\nif __name__ == \"__main__\":\n    main()"
+}

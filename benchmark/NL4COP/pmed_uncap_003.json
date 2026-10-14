@@ -1,0 +1,94 @@
+{
+    "problem_id": "pmed_uncap_003",
+    "problem_type": "Uncapacitated P-Median Problem",
+    "difficulty": "hard",
+    "problem_description": "An advanced molecular quantum computing architecture requires strategic deployment of four quantum entanglement stabilization nodes across a ten-qubit processing array to establish optimal coherence preservation pathways that minimize cumulative quantum decoherence rates while adhering to strict superposition constraints and quantum error correction protocols. The quantum topology employs a sophisticated coherence matrix where each connection represents bidirectional quantum tunneling pathways with associated decoherence susceptibility coefficients measured in inverse femtoseconds. The objective is to identify optimal node placement configurations that minimize the aggregate quantum state degradation across all processing segments while maintaining entanglement fidelity above established threshold parameters. Quantum connection characteristics and decoherence susceptibility coefficients include: bidirectional quantum tunneling pathway between node one and node two exhibits susceptibility coefficient two; pathway between node one and node three demonstrates coefficient four; pathway connecting node one and node four shows coefficient one; pathway linking node one and node five reveals coefficient five; pathway between node one and node six exhibits coefficient three; pathway connecting node one and node seven demonstrates coefficient six; pathway linking node one and node eight shows coefficient seven; pathway between node one and node nine exhibits coefficient eight; pathway connecting node one and node ten reveals coefficient nine; pathway between node two and node three demonstrates coefficient one; pathway connecting node two and node four shows coefficient three; pathway between node two and node five exhibits coefficient two; pathway connecting node two and node six reveals coefficient four; pathway between node two and node seven demonstrates coefficient five; pathway connecting node two and node eight shows coefficient six; pathway between node two and node nine reveals coefficient seven; pathway connecting node two and node ten demonstrates coefficient eight; pathway between node three and node four exhibits coefficient two; pathway connecting node three and node five shows coefficient three; pathway between node three and node six demonstrates coefficient one; pathway connecting node three and node seven reveals coefficient four; pathway connecting node three and node eight shows coefficient five; pathway connecting node three and node nine exhibits coefficient six; pathway connecting node three and node ten reveals coefficient seven; pathway connecting node four and node five exhibits coefficient four; pathway between node four and node six shows coefficient two; pathway connecting node four and node seven demonstrates coefficient three; pathway connecting node four and node eight exhibits coefficient four; pathway connecting node four and node nine reveals coefficient five; pathway connecting node four and node ten shows coefficient six; pathway connecting node five and node six exhibits coefficient three; pathway between node five and node seven demonstrates coefficient two; pathway connecting node five and node eight reveals coefficient three; pathway connecting node five and node nine shows coefficient four; pathway connecting node five and node ten exhibits coefficient five; pathway between node six and node seven demonstrates coefficient one; pathway connecting node six and node eight reveals coefficient two; pathway connecting node six and node nine shows coefficient three; pathway connecting node six and node ten exhibits coefficient four; pathway between node seven and node eight demonstrates coefficient one; pathway connecting node seven and node nine reveals coefficient two; pathway connecting node seven and node ten shows coefficient three; pathway between node eight and node nine demonstrates coefficient one; pathway connecting node eight and node ten reveals coefficient two; and pathway between node nine and node ten demonstrates coefficient one. Each quantum processing node must establish connectivity with exactly one quantum entanglement stabilization node, and the quantum decoherence rate from any node to its assigned stabilization node represents the minimum achievable coherence degradation through available quantum tunneling pathways utilizing optimal error correction protocols.\n\nPrint the following fields: - quantum_entanglement_stabilization_nodes: selected facility locations. - total_quantum_decoherence_rate: total distance cost. - quantum_coherence_assignments: for each node, list assignment with facility, pathway, cost.",
+    "reference_solution": {
+        "quantum_entanglement_stabilization_nodes": [
+            1,
+            2,
+            6,
+            9
+        ],
+        "total_quantum_decoherence_rate": 7,
+        "quantum_coherence_assignments": [
+            [
+                1,
+                [
+                    1
+                ],
+                0
+            ],
+            [
+                2,
+                [
+                    2
+                ],
+                0
+            ],
+            [
+                2,
+                [
+                    3,
+                    2
+                ],
+                1
+            ],
+            [
+                1,
+                [
+                    4,
+                    1
+                ],
+                1
+            ],
+            [
+                2,
+                [
+                    5,
+                    2
+                ],
+                2
+            ],
+            [
+                6,
+                [
+                    6
+                ],
+                0
+            ],
+            [
+                6,
+                [
+                    7,
+                    6
+                ],
+                1
+            ],
+            [
+                9,
+                [
+                    8,
+                    9
+                ],
+                1
+            ],
+            [
+                9,
+                [
+                    9
+                ],
+                0
+            ],
+            [
+                9,
+                [
+                    10,
+                    9
+                ],
+                1
+            ]
+        ]
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport itertools\nimport json\n\ndef main():\n    N = 10\n    K = 4\n    \n    c = [[0] * N for _ in range(N)]\n    \n    c[0][1] = c[1][0] = 2\n    c[0][2] = c[2][0] = 4\n    c[0][3] = c[3][0] = 1\n    c[0][4] = c[4][0] = 5\n    c[0][5] = c[5][0] = 3\n    c[0][6] = c[6][0] = 6\n    c[0][7] = c[7][0] = 7\n    c[0][8] = c[8][0] = 8\n    c[0][9] = c[9][0] = 9\n    \n    c[1][2] = c[2][1] = 1\n    c[1][3] = c[3][1] = 3\n    c[1][4] = c[4][1] = 2\n    c[1][5] = c[5][1] = 4\n    c[1][6] = c[6][1] = 5\n    c[1][7] = c[7][1] = 6\n    c[1][8] = c[8][1] = 7\n    c[1][9] = c[9][1] = 8\n    \n    c[2][3] = c[3][2] = 2\n    c[2][4] = c[4][2] = 3\n    c[2][5] = c[5][2] = 1\n    c[2][6] = c[6][2] = 4\n    c[2][7] = c[7][2] = 5\n    c[2][8] = c[8][2] = 6\n    c[2][9] = c[9][2] = 7\n    \n    c[3][4] = c[4][3] = 4\n    c[3][5] = c[5][3] = 2\n    c[3][6] = c[6][3] = 3\n    c[3][7] = c[7][3] = 4\n    c[3][8] = c[8][3] = 5\n    c[3][9] = c[9][3] = 6\n    \n    c[4][5] = c[5][4] = 3\n    c[4][6] = c[6][4] = 2\n    c[4][7] = c[7][4] = 3\n    c[4][8] = c[8][4] = 4\n    c[4][9] = c[9][4] = 5\n    \n    c[5][6] = c[6][5] = 1\n    c[5][7] = c[7][5] = 2\n    c[5][8] = c[8][5] = 3\n    c[5][9] = c[9][5] = 4\n    \n    c[6][7] = c[7][6] = 1\n    c[6][8] = c[8][6] = 2\n    c[6][9] = c[9][6] = 3\n    \n    c[7][8] = c[8][7] = 1\n    c[7][9] = c[9][7] = 2\n    \n    c[8][9] = c[9][8] = 1\n    \n    d = [[float('inf')] * N for _ in range(N)]\n    for i in range(N):\n        for j in range(N):\n            if i == j:\n                d[i][j] = 0\n            elif c[i][j] > 0:\n                d[i][j] = c[i][j]\n            else:\n                d[i][j] = float('inf')\n    \n    for k in range(N):\n        for i in range(N):\n            for j in range(N):\n                if d[i][k] + d[k][j] < d[i][j]:\n                    d[i][j] = d[i][k] + d[k][j]\n    \n    model = cp_model.CpModel()\n    \n    y = [model.NewBoolVar(f'y_{j}') for j in range(N)]\n    \n    x = [[model.NewBoolVar(f'x_{i}_{j}') for j in range(N)] for i in range(N)]\n    \n    model.Add(sum(y) == K)\n    \n    for i in range(N):\n        model.Add(sum(x[i][j] for j in range(N)) == 1)\n    \n    for i in range(N):\n        for j in range(N):\n            model.Add(x[i][j] <= y[j])\n    \n    for j in range(N):\n        model.Add(x[j][j] >= y[j])\n    \n    scaled_distances = [[int(round(d[i][j] * 100)) for j in range(N)] for i in range(N)]\n    \n    objective_terms = []\n    for i in range(N):\n        for j in range(N):\n            objective_terms.append(x[i][j] * scaled_distances[i][j])\n    \n    model.Minimize(sum(objective_terms))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 30.0\n    solver.parameters.num_search_workers = 8\n    \n    status = solver.Solve(model)\n    \n    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):\n        selected_nodes = [j+1 for j in range(N) if solver.Value(y[j]) == 1]\n        \n        total_rate = solver.ObjectiveValue() / 100.0\n        \n        assignments = []\n        for i in range(N):\n            for j in range(N):\n                if solver.Value(x[i][j]) == 1:\n                    if i == j:\n                        path = [i+1]\n                    else:\n                        path = [i+1]\n                        current = i\n                        while current != j:\n                            found = False\n                            for k in range(N):\n                                if k == current:\n                                    continue\n                                if abs(d[current][j] - (c[current][k] + d[k][j])) < 1e-5:\n                                    path.append(k+1)\n                                    current = k\n                                    found = True\n                                    break\n                            if not found:\n                                path.append(j+1)\n                                break\n                    assignments.append([j+1, path, d[i][j]])\n                    break\n        \n        assignments.sort(key=lambda a: a[1][0])\n        \n        print(json.dumps({\n            \"quantum_entanglement_stabilization_nodes\": selected_nodes,\n            \"total_quantum_decoherence_rate\": round(total_rate),\n            \"quantum_coherence_assignments\": assignments\n        }))\n        \n    else:\n        print(json.dumps({\n            \"quantum_entanglement_stabilization_nodes\": [],\n            \"total_quantum_decoherence_rate\": 0,\n            \"quantum_coherence_assignments\": []\n        }))\n\nif __name__ == \"__main__\":\n    main()"
+}

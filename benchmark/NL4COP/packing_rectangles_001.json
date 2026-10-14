@@ -1,0 +1,47 @@
+{
+    "problem_id": "packing_rectangles_001",
+    "problem_type": "Rectangle Packing Problem",
+    "difficulty": "simple",
+    "problem_description": "In a quantum computing data center, engineers are implementing a thermal management system for a cylindrical cryogenic container with center coordinates (30, 36) and radius 42 millimeters. The system requires strategic placement of ten heat dissipation modules with different specifications: module 1 is a superconducting qubit array with length 11 millimeters and width 16 millimeters; module 2 is a quantum error correction processor with length 22 millimeters and width 11 millimeters; module 3 is a quantum memory unit with length 17 millimeters and width 15 millimeters; module 4 is a quantum gate array with length 18 millimeters and width 26 millimeters; module 5 is a quantum annealing processor with length 27 millimeters and width 26 millimeters; module 6 is a quantum sensor matrix with length 32 millimeters and width 22 millimeters; module 7 is a quantum communication interface with length 30 millimeters and width 35 millimeters; module 8 is a quantum simulation engine with length 37 millimeters and width 34 millimeters; module 9 is a quantum cryptography module with length 46 millimeters and width 34 millimeters; and module 10 is a quantum metrology system with length 38 millimeters and width 48 millimeters. Each module can be either activated or remain inactive, with no partial activation allowed. When activated, a module must be positioned completely within the cylindrical container boundaries to maintain quantum coherence. No two activated modules may overlap to prevent electromagnetic interference. The team seeks to determine the optimal module selection and positioning to maximize the number of operational modules while preserving system performance, ensuring modules cannot be rotated and all coordinates must be integer values.\n\nPrint the following fields: - activated: for each activated module, list placement with module ID, x, y. - total_activated: total number of activated modules.",
+    "reference_solution": {
+        "activated": [
+            [
+                0,
+                24,
+                25
+            ],
+            [
+                1,
+                14,
+                63
+            ],
+            [
+                2,
+                39,
+                7
+            ],
+            [
+                3,
+                21,
+                -4
+            ],
+            [
+                4,
+                -6,
+                15
+            ],
+            [
+                5,
+                3,
+                41
+            ],
+            [
+                6,
+                36,
+                22
+            ]
+        ],
+        "total_activated": 7
+    },
+    "solver_code": "from ortools.sat.python import cp_model\nimport math\nimport json\n\ndef main():\n    center_x = 30\n    center_y = 36\n    radius = 42\n    radius_sq = radius * radius\n    \n    length = [11, 22, 17, 18, 27, 32, 30, 37, 46, 38]\n    width = [16, 11, 15, 26, 26, 22, 35, 34, 34, 48]\n    n_modules = len(length)\n    \n    model = cp_model.CpModel()\n    \n    activate = [model.NewBoolVar(f\"activate_{i+1}\") for i in range(n_modules)]\n    x = [model.NewIntVar(-20, 80, f\"x_{i+1}\") for i in range(n_modules)]\n    y = [model.NewIntVar(-20, 80, f\"y_{i+1}\") for i in range(n_modules)]\n    \n    for i in range(n_modules):\n        x_right = model.NewIntVar(-20, 120, f\"x_right_{i+1}\")\n        model.Add(x_right == x[i] + length[i])\n        \n        y_top = model.NewIntVar(-20, 120, f\"y_top_{i+1}\")\n        model.Add(y_top == y[i] + width[i])\n        \n        dist_x_left = model.NewIntVar(0, 100, f\"dist_x_left_{i+1}\")\n        dist_x_right = model.NewIntVar(0, 100, f\"dist_x_right_{i+1}\")\n        \n        diff_x_left = model.NewIntVar(-100, 100, f\"diff_x_left_{i+1}\")\n        model.Add(diff_x_left == x[i] - center_x)\n        model.AddAbsEquality(dist_x_left, diff_x_left)\n        \n        diff_x_right = model.NewIntVar(-100, 100, f\"diff_x_right_{i+1}\")\n        model.Add(diff_x_right == x_right - center_x)\n        model.AddAbsEquality(dist_x_right, diff_x_right)\n        \n        max_dist_x = model.NewIntVar(0, 100, f\"max_dist_x_{i+1}\")\n        model.AddMaxEquality(max_dist_x, [dist_x_left, dist_x_right])\n        \n        dist_y_bottom = model.NewIntVar(0, 100, f\"dist_y_bottom_{i+1}\")\n        dist_y_top = model.NewIntVar(0, 100, f\"dist_y_top_{i+1}\")\n        \n        diff_y_bottom = model.NewIntVar(-100, 100, f\"diff_y_bottom_{i+1}\")\n        model.Add(diff_y_bottom == y[i] - center_y)\n        model.AddAbsEquality(dist_y_bottom, diff_y_bottom)\n        \n        diff_y_top = model.NewIntVar(-100, 100, f\"diff_y_top_{i+1}\")\n        model.Add(diff_y_top == y_top - center_y)\n        model.AddAbsEquality(dist_y_top, diff_y_top)\n        \n        max_dist_y = model.NewIntVar(0, 100, f\"max_dist_y_{i+1}\")\n        model.AddMaxEquality(max_dist_y, [dist_y_bottom, dist_y_top])\n        \n        max_dist_x_sq = model.NewIntVar(0, 10000, f\"max_dist_x_sq_{i+1}\")\n        max_dist_y_sq = model.NewIntVar(0, 10000, f\"max_dist_y_sq_{i+1}\")\n        model.AddMultiplicationEquality(max_dist_x_sq, [max_dist_x, max_dist_x])\n        model.AddMultiplicationEquality(max_dist_y_sq, [max_dist_y, max_dist_y])\n        \n        total_dist_sq = model.NewIntVar(0, 20000, f\"total_dist_sq_{i+1}\")\n        model.Add(total_dist_sq == max_dist_x_sq + max_dist_y_sq)\n        \n        model.Add(total_dist_sq <= radius_sq).OnlyEnforceIf(activate[i])\n    \n    for i in range(n_modules):\n        for j in range(i + 1, n_modules):\n            left_of = model.NewBoolVar(f\"left_of_{i+1}_{j+1}\")\n            right_of = model.NewBoolVar(f\"right_of_{i+1}_{j+1}\")\n            below = model.NewBoolVar(f\"below_{i+1}_{j+1}\")\n            above = model.NewBoolVar(f\"above_{i+1}_{j+1}\")\n            \n            model.Add(x[i] + length[i] <= x[j]).OnlyEnforceIf(left_of)\n            model.Add(x[j] + length[j] <= x[i]).OnlyEnforceIf(right_of)\n            model.Add(y[i] + width[i] <= y[j]).OnlyEnforceIf(below)\n            model.Add(y[j] + width[j] <= y[i]).OnlyEnforceIf(above)\n            \n            model.AddBoolOr([left_of, right_of, below, above]).OnlyEnforceIf([activate[i], activate[j]])\n    \n    model.Maximize(sum(activate))\n    \n    solver = cp_model.CpSolver()\n    solver.parameters.max_time_in_seconds = 180.0\n    solver.parameters.num_search_workers = 8\n    status = solver.Solve(model)\n    \n    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:\n        activated_list = []\n        for i in range(n_modules):\n            if solver.Value(activate[i]) == 1:\n                x_val = solver.Value(x[i])\n                y_val = solver.Value(y[i])\n                activated_list.append([i, x_val, y_val])\n        result = {\n            \"activated\": activated_list,\n            \"total_activated\": len(activated_list)\n        }\n        print(json.dumps(result))\n    else:\n        result = {\n            \"activated\": [],\n            \"total_activated\": 0\n        }\n        print(json.dumps(result))\n\nif __name__ == \"__main__\":\n    main()"
+}
