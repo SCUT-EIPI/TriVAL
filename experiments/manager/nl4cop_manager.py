@@ -1,4 +1,4 @@
-"""Read NL4COP problem files in problem_id order."""
+"""Read NL4COP benchmark instances."""
 
 import json
 from pathlib import Path
@@ -19,7 +19,6 @@ class NL4COPManager:
         self._dataset = self._load_data()
 
     def _load_data(self) -> list[dict[str, Any]]:
-        """Load JSON records and sort them by problem_id."""
         problems: list[dict[str, Any]] = []
 
         json_files = sorted(self.dataset_path.glob("*.json"))

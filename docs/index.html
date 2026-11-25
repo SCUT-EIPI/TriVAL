@@ -320,14 +320,8 @@
 
   <section id="resources" class="wrap section">
     <div class="section-heading"><h2>Run TriVAL</h2><a class="source" href="https://github.com/SCUT-EIPI/TriVAL#quick-start">Installation guide ↗</a></div>
-    <p class="body-text">The public implementation uses Python 3.13, uv, and a DeepSeek API key. Install the dependencies and copy the environment template, then set <code>DEEPSEEK_API_KEY</code> in <code>.env</code>.</p>
-    <pre><code>git clone https://github.com/SCUT-EIPI/TriVAL.git
-cd TriVAL
-uv sync --locked --python 3.13
-cp .env.example .env</code></pre>
-    <p class="body-text">Run the assignment instance shown above. The runner supplies the problem description to TriVAL and keeps reference solutions and code out of the model input.</p>
+    <p class="body-text">To run the employee–task assignment example, follow the installation guide and use the command below.</p>
     <pre><code>uv run python run.py --dataset nl4cop --index 3</code></pre>
-    <p class="note">The current runner defaults to DeepSeek Flash. The paper reports experiments with DeepSeek-V3.2 and GPT-5.1.</p>
   </section>
   <section id="citation" class="wrap section cite">
     <div class="section-heading"><h2>Citation</h2><button type="button" class="btn" id="copy-cite" hidden>Copy BibTeX</button></div>
