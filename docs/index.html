@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#153f36">
+  <title>TriVAL · A Tri-Validation Framework for Faithful Automatic Optimization Modeling</title>
+  <meta name="description" content="TriVAL validates the semantic specification, mathematical formulation, and solver code of an optimization problem. Explore the method, experimental results, and all 150 instances of NL4COP.">
+  <meta property="og:title" content="TriVAL · Faithful Automatic Optimization Modeling">
+  <meta property="og:description" content="Three stages of validation, a warehouse planning case study, and NL4COP, a benchmark of 150 combinatorial optimization problems.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://raw.githubusercontent.com/SCUT-EIPI/TriVAL/main/assets/trival_framework.png">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#introduction">Skip to content</a>
+<header class="mast" id="top">
+  <div class="wrap mast-inner">
+    <a class="brand" href="#top" aria-label="TriVAL home"><img src="assets/favicon.svg" alt="" width="27" height="27">TriVAL</a>
+    <nav aria-label="Page sections">
+      <a href="#introduction">Introduction</a><a href="#method">Method</a><a href="#case-study">Case study</a><a href="#benchmark">NL4COP</a><a href="#results">Results</a><a href="#conclusion">Conclusion</a><a href="#citation">Cite</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="hero container blog" id="first-content">
+    <div class="wrap blog-title">
+      <div class="blog-intro">
+        <p class="eyebrow"><a href="https://arxiv.org/abs/2605.23966">arXiv 2605.23966</a><span>May 2026</span></p>
+        <h1>TriVAL<span>A Tri-Validation Framework for Faithful Automatic Optimization Modeling</span></h1>
+        <p class="author">Ziyang Fang<sup>1</sup>, JinXi Wang<sup>1</sup>, Jinghui Zhong<sup>1,*</sup>, Yew-Soon Ong<sup>2,3</sup></p>
+        <div class="affiliations"><span><sup>1</sup> South China University of Technology</span><span><sup>2</sup> Centre for Frontier AI Research, A*STAR</span><span><sup>3</sup> Nanyang Technological University</span><span>* Corresponding author</span></div>
+        <div class="actions"><a class="btn primary" href="https://arxiv.org/pdf/2605.23966">Read paper <span aria-hidden="true">↗</span></a><a class="btn" href="https://github.com/SCUT-EIPI/TriVAL">Code <span aria-hidden="true">↗</span></a><a class="btn" href="#benchmark">NL4COP <span aria-hidden="true">↓</span></a></div>
+      </div>
+      <div class="blog-cover" role="img" aria-label="TriVAL constructs, validates, and revises a semantic specification, a mathematical formulation, and solver code in sequence.">
+        <div class="cover-top">Construct · Validate · Revise</div>
+        <div class="sheet s-one"><span class="artifact">S</span><div><strong>Semantic specification</strong><small>Facts · ambiguities · resolutions</small></div></div>
+        <div class="sheet s-two"><span class="artifact">M</span><div><strong>Mathematical formulation</strong><small>Variables · constraints · objective</small></div></div>
+        <div class="sheet s-three"><span class="artifact">C</span><div><strong>Solver code</strong><small>Implementation · execution feedback</small></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="wrap intro-row">
+    <div><h2 class="label abstract-heading">Abstract</h2>
+      <p class="intro-text">TriVAL translates a natural-language optimization problem into solver code. It checks the interpretation against the problem description, the mathematical formulation against that interpretation, and the code against the formulation. We introduce NL4COP to evaluate this approach on 150 combinatorial problems with interacting constraints.</p></div>
+    <div class="headline-stat"><strong>87.3<span>%</span></strong><p>NL4COP solving accuracy<br>DeepSeek-V3.2 · best of five runs</p></div>
+  </div>
+
+  <section id="introduction" class="wrap section reading">
+    <div class="section-heading"><h2>Introduction</h2><a class="source" href="https://arxiv.org/html/2605.23966v1#S1">Paper §I ↗</a></div>
+    <p class="lead">A solver optimizes the objective and constraints it receives. In automatic modeling, the difficult step is deciding which objective and constraints express the problem someone described.</p>
+    <p class="body-text">Consider a store that purchases stock at the beginning of a month and sells it during that month. A warehouse can be within capacity at month-end even if it overflowed when the delivery arrived. The timing of the check changes which purchasing plans are feasible. Code that faithfully implements a month-end check carries that modeling decision all the way to the solver.</p>
+    <p class="body-text">Each translation introduces a different opportunity for error. The initial reading can omit when deliveries arrive. The equations can use the wrong inventory variable even when the timing is understood. The program can apply a correct constraint to the wrong months. Locating the first discrepancy tells the modeler what to revise.</p>
+    <div class="section-heading subheading" id="related-work"><h3>Related work and the role of validation</h3><a class="source" href="https://arxiv.org/html/2605.23966v1#S2">Paper §II ↗</a></div>
+    <p class="body-text">ORLM and LLMOPT train models on examples that connect problem descriptions to formulations and code. OR-LLM-Agent divides modeling, code generation, and debugging into stages. AutoFormulation scores candidate formulations during search, while OptiVer examines the structure and solutions of a completed model.</p>
+    <p class="body-text">TriVAL makes each intermediate result available for inspection while its source is still explicit. An ambiguity can be revisited in the original wording, a constraint can be traced to the requirement it expresses, and a solver call can be compared with the equation it implements. The choice of what to check determines where feedback goes next. <a class="source" href="https://arxiv.org/html/2605.23966v1#S2.T1">Method comparison in Table I ↗</a></p>
+  </section>
+
+  <section id="method" class="wrap section">
+    <div class="section-heading"><h2>The method</h2><a class="source" href="https://arxiv.org/html/2605.23966v1#S3">Paper §III ↗</a></div>
+    <p class="lead">Given a problem description, TriVAL constructs a semantic specification <i>S</i>, a mathematical formulation <i>M</i>, and solver code <i>C</i>. At each stage, an LLM-based validator compares the current result with its sources and identifies what needs revision. The next stage uses the resulting specification or formulation.</p>
+    <figure class="plate">
+      <a href="assets/trival_framework.webp"><img src="assets/trival_framework.webp" width="2400" height="908" alt="The three TriVAL stages and their revision paths, including feedback from code validation to formulation revision."></a>
+      <figcaption><b>Reading the framework.</b> Follow the construction path from the problem description to execution. A return arrow shows which artifact is revised. The path from code validation back to the formulation lets a solver outcome trigger a change to the equations.</figcaption>
+    </figure>
+    <div class="stage-list">
+      <details open><summary>Semantic validation <span>Problem understanding</span></summary>
+        <div class="stage-body"><div><h3>Record the decisions implicit in the text</h3>
+          <p>The semantic fact extractor records the inputs, decisions, requirements, and objective. It also identifies readings that would give different models. In the warehouse example, purchase timing is a stated fact. The point at which capacity must hold is a modeling interpretation. Keeping them separate makes that choice visible.</p>
+          <p>The ambiguity resolver records an interpretation for each consequential ambiguity. The semantic validator then rereads the original text to find missing or unsupported facts, examine whether each ambiguity changes the formulation, and check the evidence for the adopted reading. Its feedback identifies the fact, ambiguity, or resolution to amend.</p>
+          <a class="source" href="https://github.com/SCUT-EIPI/TriVAL/tree/main/agents/nodes/semantic_validation">Semantic prompts and implementation ↗</a></div><a href="assets/semantic_validation.webp" aria-label="Open full-size figure. Semantic fact extraction and ambiguity resolution feed a validator that can request revisions."><img loading="lazy" width="1200" height="958" src="assets/semantic_validation.webp" alt="Semantic fact extraction and ambiguity resolution feed a validator that can request revisions."></a></div>
+      </details>
+      <details open><summary>Formulation validation <span>Mathematical modeling</span></summary>
+        <div class="stage-body"><div><h3>Select a formulation, then test its modeling choices</h3>
+          <p>A routing decision can be represented by the order of visits or by the edges a vehicle uses. The choice changes how the constraints must be written. TriVAL explores alternatives through four experts who focus respectively on parameters and indices, decision variables, constraints, and the objective. Each independently produces a complete model from the same specification. A selector weighs the candidates’ correctness, variable design, and compactness and chooses one.</p>
+          <p>The formulation validator compares the chosen variables, constraints, and objective with the specification and the original description. If a capacity bound uses the wrong time index, it can revise that expression locally. If the variables cannot represent a required decision, the validator sends feedback to all four experts to construct new candidates.</p>
+          <a class="source" href="https://github.com/SCUT-EIPI/TriVAL/tree/main/agents/nodes/formulation_validation">Formulation prompts and implementation ↗</a></div><a href="assets/formulation_validation.webp" aria-label="Open full-size figure. Four experts generate complete formulations for selection, validation and revision."><img loading="lazy" width="997" height="1200" src="assets/formulation_validation.webp" alt="Four experts generate complete formulations for selection, validation and revision."></a></div>
+      </details>
+      <details open><summary>Code validation <span>Executable translation</span></summary>
+        <div class="stage-body"><div><h3>Use execution feedback to locate the defect</h3>
+          <p>A code agent writes the solver program, runs it, and uses runtime errors to repair problems such as an incorrect solver call. Once the program executes, the code validator reads the program and the solver output alongside the formulation. It checks variable types, index ranges, constraint coverage, and the direction and expression of the objective.</p>
+          <p>If the formulation requires a capacity check every month and the code skips one, the code agent repairs the implementation. If the code implements the equations as written and the solver reports an abnormal result, the validator can attribute a defect to the formulation. TriVAL then revises the equations and regenerates the code.</p>
+          <a class="source" href="https://github.com/SCUT-EIPI/TriVAL/tree/main/agents/nodes/code_validation">Code prompts and implementation ↗</a></div><a href="assets/code_validation.webp" aria-label="Open full-size figure. The code agent uses execution feedback and a validator identifies the source of errors."><img loading="lazy" width="1200" height="992" src="assets/code_validation.webp" alt="The code agent uses execution feedback and a validator identifies the source of errors."></a></div>
+      </details>
+    </div>
+    <p class="body-text">Acceptance ends a validation loop. Reaching a stage’s round limit also ends that loop, so the next step can inherit a remaining error. The paper’s algorithm specifies the revision paths and stopping conditions for all three stages. <a class="source" href="https://arxiv.org/html/2605.23966v1#alg1">Algorithm 1 ↗</a></p>
+  </section>
+
+  <section id="case-study" class="tint"><div class="wrap section">
+    <div class="section-heading"><h2>Case study</h2><a class="source" href="https://arxiv.org/html/2605.23966v1#S4.F7">Paper Fig. 7 ↗</a></div>
+    <h3>Warehouse capacity in monthly purchasing</h3>
+    <p class="lead">In the paper’s first-quarter inventory problem, the store chooses monthly purchases and sales to maximize profit. The semantic specification records that capacity must hold throughout the month. The initial formulation checks inventory only after the month’s sales.</p>
+    <div class="equations">
+      <div><span class="label">Initial constraint</span><p class="math"><i>i</i><sub>t</sub> ≤ <i>C</i></p><p>Checks stock remaining at month-end, after sales.</p></div>
+      <div><span class="label">Revised constraint</span><p class="math"><i>i</i><sub>t−1</sub> + <i>p</i><sub>t</sub> ≤ <i>C</i></p><p>Checks opening stock plus purchases, before sales.</p></div>
+    </div>
+    <p class="body-text">Here <i>i</i><sub>t</sub> is closing inventory, <i>p</i><sub>t</sub> is the quantity purchased, and <i>C</i> is capacity. For illustration, suppose capacity is 10 units. The store starts with 8, buys 4, and sells 5. Closing inventory is 7, so the first inequality accepts the plan. The delivery briefly brings stock to 12, so the revised inequality rules it out.</p>
+    <p class="body-text">In the reported case, the formulation validator identifies the timing error by comparing the inequality with the semantic specification. Replacing the capacity constraint preserves the variables and profit objective. The revised program reports an optimal profit of <strong>4,100</strong>.</p>
+    <details class="fold"><summary>Original case-study figure</summary><a href="assets/case_study.webp" aria-label="Open full-size figure. Original Figure 7 comparing end-of-month capacity with capacity immediately after purchasing."><img loading="lazy" width="2250" height="731" src="assets/case_study.webp" alt="Original Figure 7 comparing end-of-month capacity with capacity immediately after purchasing."></a></details>
+  </div></section>
+
+  <section id="benchmark" class="wrap section">
+    <div class="section-heading"><h2>NL4COP</h2><a class="source" href="https://github.com/SCUT-EIPI/TriVAL/tree/main/benchmark/NL4COP">Benchmark files ↗</a></div>
+    <p class="lead">Interacting constraints put all three modeling stages to work. A routing decision can affect the remaining load of a vehicle and which customers it can serve next. NL4COP tests this kind of discrete reasoning across <strong>50 problem types</strong>, each represented by a simple, medium, and hard instance.</p>
+    <p class="body-text">Across the 150 instances, difficulty varies with the amount of data, the length of the description, and the complexity of the constraints. Including all three levels within each type lets us examine what happens as modeling becomes harder while keeping the mix of problem types fixed.</p>
+    <p class="body-text">Each record contains a natural-language description, a reference solution, and executable reference Python code. The authors ran the reference solvers to check feasibility. Two operations research experts independently cross-checked the description, code, and reference answer for consistency.</p>
+    <div class="evidence-pair">
+      <div><h3>Benchmark complexity</h3><p class="body-text">The paper characterizes the tasks before evaluating the models. Across NL4COP, descriptions average 3,249 characters, and mean modeling complexity is 9.4 on the paper’s scale. IndustryOR averages 1,046 characters and 7.9 on the same measure. The three difficulty splits then let us examine accuracy within NL4COP itself.</p></div>
+      <figure><a href="assets/benchmark_complexity_violin_box.webp" aria-label="Open full-size figure. Paper Figure 5 compares modeling complexity distributions across eight benchmarks."><img loading="lazy" width="1200" height="652" src="assets/benchmark_complexity_violin_box.webp" alt="Paper Figure 5 compares modeling complexity distributions across eight benchmarks."></a><figcaption><b>Complexity distribution.</b> Figure 5 compares modeling complexity across individual instances in eight benchmarks.</figcaption></figure>
+    </div>
+    <div class="example"><div><span class="label">Example instance</span><h3>Employee–task assignment</h3><p>Assign ten employees to ten tasks, one task per employee, minimizing total hours. The reference assignment costs <strong>145 hours</strong>.</p></div><a class="btn" href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assignment_problem_001.json">View record ↗</a></div>
+    <details class="fold" id="catalogue"><summary>Browse all 50 problem types</summary>
+      <p>Each link opens the complete record and its reference solver.</p>
+      <div class="filter" hidden><label for="type-query">Filter by problem type</label><input id="type-query" type="search" placeholder="e.g. scheduling"><span id="match-count" aria-live="polite"></span></div>
+      <div class="scroll catalogue-scroll" role="region" aria-label="NL4COP problem records" tabindex="0"><table>
+<thead><tr><th scope="col">Problem type</th><th scope="col">Simple</th><th scope="col">Medium</th><th scope="col">Hard</th></tr></thead>
+<tbody>
+<tr><th scope="row">Aircraft Landing Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/aircraft_landing_001.json" aria-label="Aircraft Landing Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/aircraft_landing_002.json" aria-label="Aircraft Landing Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/aircraft_landing_003.json" aria-label="Aircraft Landing Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Assignment Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assignment_problem_001.json" aria-label="Assignment Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assignment_problem_002.json" aria-label="Assignment Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assignment_problem_003.json" aria-label="Assignment Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Assortment Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assortment_problem_001.json" aria-label="Assortment Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assortment_problem_002.json" aria-label="Assortment Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/assortment_problem_003.json" aria-label="Assortment Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Bin Packing Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/bin_packing_001.json" aria-label="Bin Packing Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/bin_packing_002.json" aria-label="Bin Packing Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/bin_packing_003.json" aria-label="Bin Packing Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Capacitated P-Median Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmedcap_001.json" aria-label="Capacitated P-Median Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmedcap_002.json" aria-label="Capacitated P-Median Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmedcap_003.json" aria-label="Capacitated P-Median Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Capacitated Vehicle Routing Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_vehicle_routing_001.json" aria-label="Capacitated Vehicle Routing Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_vehicle_routing_002.json" aria-label="Capacitated Vehicle Routing Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_vehicle_routing_003.json" aria-label="Capacitated Vehicle Routing Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Capacitated Warehouse Location Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_warehouse_location_001.json" aria-label="Capacitated Warehouse Location Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_warehouse_location_002.json" aria-label="Capacitated Warehouse Location Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/capacitated_warehouse_location_003.json" aria-label="Capacitated Warehouse Location Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Chinese Postman Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/chinese_postman_001.json" aria-label="Chinese Postman Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/chinese_postman_002.json" aria-label="Chinese Postman Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/chinese_postman_003.json" aria-label="Chinese Postman Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Constrained Guillotine Cutting Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_guillotine_cutting_001.json" aria-label="Constrained Guillotine Cutting Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_guillotine_cutting_002.json" aria-label="Constrained Guillotine Cutting Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_guillotine_cutting_003.json" aria-label="Constrained Guillotine Cutting Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Constrained Non-Guillotine Cutting Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_non_guillotine_cutting_001.json" aria-label="Constrained Non-Guillotine Cutting Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_non_guillotine_cutting_002.json" aria-label="Constrained Non-Guillotine Cutting Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/constrained_non_guillotine_cutting_003.json" aria-label="Constrained Non-Guillotine Cutting Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Container Loading Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_001.json" aria-label="Container Loading Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_002.json" aria-label="Container Loading Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_003.json" aria-label="Container Loading Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Container Loading with Weight Restrictions Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_with_weight_restrictions_001.json" aria-label="Container Loading with Weight Restrictions Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_with_weight_restrictions_002.json" aria-label="Container Loading with Weight Restrictions Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/container_loading_with_weight_restrictions_003.json" aria-label="Container Loading with Weight Restrictions Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Covering Location Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/covering_location_001.json" aria-label="Covering Location Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/covering_location_002.json" aria-label="Covering Location Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/covering_location_003.json" aria-label="Covering Location Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Crew Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/crew_scheduling_001.json" aria-label="Crew Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/crew_scheduling_002.json" aria-label="Crew Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/crew_scheduling_003.json" aria-label="Crew Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Equitable Partitioning Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/equitable_partitioning_001.json" aria-label="Equitable Partitioning Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/equitable_partitioning_002.json" aria-label="Equitable Partitioning Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/equitable_partitioning_003.json" aria-label="Equitable Partitioning Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Flow Shop Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/flow_shop_scheduling_001.json" aria-label="Flow Shop Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/flow_shop_scheduling_002.json" aria-label="Flow Shop Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/flow_shop_scheduling_003.json" aria-label="Flow Shop Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Generalised Assignment Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/generalised_assignment_001.json" aria-label="Generalised Assignment Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/generalised_assignment_002.json" aria-label="Generalised Assignment Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/generalised_assignment_003.json" aria-label="Generalised Assignment Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Graph Coloring Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/graph_coloring_001.json" aria-label="Graph Coloring Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/graph_coloring_002.json" aria-label="Graph Coloring Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/graph_coloring_003.json" aria-label="Graph Coloring Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Hybrid Reentrant Shop Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/hybrid_reentrant_shop_scheduling_001.json" aria-label="Hybrid Reentrant Shop Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/hybrid_reentrant_shop_scheduling_002.json" aria-label="Hybrid Reentrant Shop Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/hybrid_reentrant_shop_scheduling_003.json" aria-label="Hybrid Reentrant Shop Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Job Shop Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/job_shop_scheduling_001.json" aria-label="Job Shop Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/job_shop_scheduling_002.json" aria-label="Job Shop Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/job_shop_scheduling_003.json" aria-label="Job Shop Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">k-Shortest Paths Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/k_shortest_paths_001.json" aria-label="k-Shortest Paths Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/k_shortest_paths_002.json" aria-label="k-Shortest Paths Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/k_shortest_paths_003.json" aria-label="k-Shortest Paths Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Location-Routing Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/location_routing_problem_001.json" aria-label="Location-Routing Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/location_routing_problem_002.json" aria-label="Location-Routing Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/location_routing_problem_003.json" aria-label="Location-Routing Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Maximum Clique Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_clique_001.json" aria-label="Maximum Clique Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_clique_002.json" aria-label="Maximum Clique Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_clique_003.json" aria-label="Maximum Clique Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Maximum Flow Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_flow_001.json" aria-label="Maximum Flow Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_flow_002.json" aria-label="Maximum Flow Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_flow_003.json" aria-label="Maximum Flow Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Maximum Independent Set Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_independent_set_001.json" aria-label="Maximum Independent Set Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_independent_set_002.json" aria-label="Maximum Independent Set Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/maximum_independent_set_003.json" aria-label="Maximum Independent Set Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Minimum Cost Maximum Flow Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cost_maximum_flow_001.json" aria-label="Minimum Cost Maximum Flow Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cost_maximum_flow_002.json" aria-label="Minimum Cost Maximum Flow Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cost_maximum_flow_003.json" aria-label="Minimum Cost Maximum Flow Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Minimum Cut Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cut_001.json" aria-label="Minimum Cut Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cut_002.json" aria-label="Minimum Cut Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_cut_003.json" aria-label="Minimum Cut Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Minimum Vertex Cover Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_vertex_cover_001.json" aria-label="Minimum Vertex Cover Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_vertex_cover_002.json" aria-label="Minimum Vertex Cover Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/minimum_vertex_cover_003.json" aria-label="Minimum Vertex Cover Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Mixed Chinese Postman Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mixed_chinese_postman_001.json" aria-label="Mixed Chinese Postman Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mixed_chinese_postman_002.json" aria-label="Mixed Chinese Postman Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mixed_chinese_postman_003.json" aria-label="Mixed Chinese Postman Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Multi-Demand Multidimensional Knapsack Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mdmkp_001.json" aria-label="Multi-Demand Multidimensional Knapsack Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mdmkp_002.json" aria-label="Multi-Demand Multidimensional Knapsack Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mdmkp_003.json" aria-label="Multi-Demand Multidimensional Knapsack Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Multidimensional Knapsack Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mkp_001.json" aria-label="Multidimensional Knapsack Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mkp_002.json" aria-label="Multidimensional Knapsack Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/mkp_003.json" aria-label="Multidimensional Knapsack Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Open Shop Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/open_shop_scheduling_001.json" aria-label="Open Shop Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/open_shop_scheduling_002.json" aria-label="Open Shop Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/open_shop_scheduling_003.json" aria-label="Open Shop Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Orienteering Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/orienteering_problem_001.json" aria-label="Orienteering Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/orienteering_problem_002.json" aria-label="Orienteering Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/orienteering_problem_003.json" aria-label="Orienteering Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Packing Unequal Circles</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_circles_001.json" aria-label="Packing Unequal Circles, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_circles_002.json" aria-label="Packing Unequal Circles, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_circles_003.json" aria-label="Packing Unequal Circles, hard">Hard</a></td></tr>
+<tr><th scope="row">Packing unequal rectangles and squares</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_rectangles_and_squares_001.json" aria-label="Packing unequal rectangles and squares, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_rectangles_and_squares_002.json" aria-label="Packing unequal rectangles and squares, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_unequal_rectangles_and_squares_003.json" aria-label="Packing unequal rectangles and squares, hard">Hard</a></td></tr>
+<tr><th scope="row">Period Vehicle Routing Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/period_vehicle_routing_001.json" aria-label="Period Vehicle Routing Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/period_vehicle_routing_002.json" aria-label="Period Vehicle Routing Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/period_vehicle_routing_003.json" aria-label="Period Vehicle Routing Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Quadratic Knapsack Problem with Conflict Graphs</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/quadratic_knapsack_with_conflict_graphs_001.json" aria-label="Quadratic Knapsack Problem with Conflict Graphs, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/quadratic_knapsack_with_conflict_graphs_002.json" aria-label="Quadratic Knapsack Problem with Conflict Graphs, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/quadratic_knapsack_with_conflict_graphs_003.json" aria-label="Quadratic Knapsack Problem with Conflict Graphs, hard">Hard</a></td></tr>
+<tr><th scope="row">Rectangle Packing Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_rectangles_001.json" aria-label="Rectangle Packing Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_rectangles_002.json" aria-label="Rectangle Packing Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/packing_rectangles_003.json" aria-label="Rectangle Packing Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Resource Constrained Shortest Path Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/resource_constrained_shortest_path_001.json" aria-label="Resource Constrained Shortest Path Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/resource_constrained_shortest_path_002.json" aria-label="Resource Constrained Shortest Path Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/resource_constrained_shortest_path_003.json" aria-label="Resource Constrained Shortest Path Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Set Covering Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_covering_001.json" aria-label="Set Covering Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_covering_002.json" aria-label="Set Covering Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_covering_003.json" aria-label="Set Covering Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Set Partitioning Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_partitioning_001.json" aria-label="Set Partitioning Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_partitioning_002.json" aria-label="Set Partitioning Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/set_partitioning_003.json" aria-label="Set Partitioning Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Single Machine Common Due Date Scheduling Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/common_due_date_scheduling_001.json" aria-label="Single Machine Common Due Date Scheduling Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/common_due_date_scheduling_002.json" aria-label="Single Machine Common Due Date Scheduling Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/common_due_date_scheduling_003.json" aria-label="Single Machine Common Due Date Scheduling Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Traveling Salesman Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_salesman_problem_001.json" aria-label="Traveling Salesman Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_salesman_problem_002.json" aria-label="Traveling Salesman Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_salesman_problem_003.json" aria-label="Traveling Salesman Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Travelling Thief Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_thief_problem_001.json" aria-label="Travelling Thief Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_thief_problem_002.json" aria-label="Travelling Thief Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/travelling_thief_problem_003.json" aria-label="Travelling Thief Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Uncapacitated P-Median Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmed_uncap_001.json" aria-label="Uncapacitated P-Median Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmed_uncap_002.json" aria-label="Uncapacitated P-Median Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/pmed_uncap_003.json" aria-label="Uncapacitated P-Median Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Uncapacitated Warehouse Location Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/uncapacitated_warehouse_location_001.json" aria-label="Uncapacitated Warehouse Location Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/uncapacitated_warehouse_location_002.json" aria-label="Uncapacitated Warehouse Location Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/uncapacitated_warehouse_location_003.json" aria-label="Uncapacitated Warehouse Location Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">unconstrained guillotine cutting problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_guillotine_cutting_001.json" aria-label="unconstrained guillotine cutting problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_guillotine_cutting_002.json" aria-label="unconstrained guillotine cutting problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_guillotine_cutting_003.json" aria-label="unconstrained guillotine cutting problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Unconstrained Non-Guillotine Cutting Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_non_guillotine_cutting_001.json" aria-label="Unconstrained Non-Guillotine Cutting Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_non_guillotine_cutting_002.json" aria-label="Unconstrained Non-Guillotine Cutting Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/unconstrained_non_guillotine_cutting_003.json" aria-label="Unconstrained Non-Guillotine Cutting Problem, hard">Hard</a></td></tr>
+<tr><th scope="row">Vehicle Routing Problem with Time Window</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/vehicle_routing_problem_with_time_window_001.json" aria-label="Vehicle Routing Problem with Time Window, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/vehicle_routing_problem_with_time_window_002.json" aria-label="Vehicle Routing Problem with Time Window, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/vehicle_routing_problem_with_time_window_003.json" aria-label="Vehicle Routing Problem with Time Window, hard">Hard</a></td></tr>
+<tr><th scope="row">Windy Rural Postman Problem</th><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/windy_rural_postman_001.json" aria-label="Windy Rural Postman Problem, simple">Simple</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/windy_rural_postman_002.json" aria-label="Windy Rural Postman Problem, medium">Medium</a></td><td><a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/NL4COP/windy_rural_postman_003.json" aria-label="Windy Rural Postman Problem, hard">Hard</a></td></tr>
+</tbody></table></div>
+    </details>
+    <details class="fold"><summary>Benchmark size and modeling complexity</summary><div class="scroll" role="region" tabindex="0" aria-label="Table II · Benchmark statistics">
+<table>
+<caption>Table II · Benchmark statistics</caption>
+<thead><tr><th scope="col">Benchmark</th><th scope="col">Instances</th><th scope="col">Avg. length (chars)</th><th scope="col">Complexity</th></tr></thead>
+<tbody>
+<tr><th scope="row">ComplexOR</th><td>18</td><td>1273</td><td>4.0</td></tr>
+<tr><th scope="row">OptiBench</th><td>403</td><td>621</td><td>5.1</td></tr>
+<tr><th scope="row">NL4Opt</th><td>205</td><td>530</td><td>5.1</td></tr>
+<tr><th scope="row">NL4LP</th><td>178</td><td>533</td><td>5.2</td></tr>
+<tr><th scope="row">Mamo</th><td>852</td><td>1225</td><td>6.4</td></tr>
+<tr><th scope="row">OptMath</th><td>129</td><td>3083</td><td>7.1</td></tr>
+<tr><th scope="row">IndustryOR</th><td>99</td><td>1046</td><td>7.9</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>150</td><td>3249</td><td>9.4</td></tr>
+</tbody></table>
+</div><p class="note">Table II reports the paper’s benchmark statistics. Length is measured in characters.</p></details>
+    <p class="note">NL4COP is released under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Dataset preparation and third-party terms are documented in the <a href="https://github.com/SCUT-EIPI/TriVAL/blob/main/benchmark/DATA_LICENSES.md">license guide</a>.</p>
+  </section>
+
+  <section id="results" class="wrap section">
+    <div class="section-heading"><h2>Experimental results</h2><a class="source" href="https://arxiv.org/html/2605.23966v1#S4.SS2">Paper §IV-B ↗</a></div>
+    <p class="lead">We evaluate whether a generated program recovers the reference objective on four benchmarks spanning different modeling demands. Mamo<sub>complex</sub> covers linear and mixed-integer problems, OptMath includes longer descriptions, IndustryOR draws on industrial settings, and NL4COP emphasizes interacting discrete decisions. Prompt-based methods share the same base model within each comparison. Their main-table scores are the best solving accuracy over five runs.</p>
+    <details class="fold"><summary>Evaluation protocol</summary><p>Each program is executed and its objective is compared with the reference. An instance counts as correct when <span class="inline-math">|ŷ − y| / (|y| + 1) &lt; 10<sup>−6</sup></span>. For an unspecified decision-variable type, the evaluation accepts a match under either the integral or continuous interpretation. The study uses OR-Tools and CVXPY, up to five validation iterations per stage and up to twenty execution-feedback rounds, with a 100-second timeout per execution.</p></details>
+    <h3>Solving accuracy by benchmark</h3>
+    <p class="body-text">On NL4COP, TriVAL reaches 87.3% with DeepSeek-V3.2, compared with 54.7% for OptiTree, the strongest baseline on that base model. With GPT-5.1, the figures are 81.3% for TriVAL and 68.0% for OR-LLM-Agent. The gap depends on the task. On Mamo<sub>complex</sub> with GPT-5.1, OR-LLM-Agent scores 91.0% and TriVAL 90.5%.</p>
+    <p class="note">Values are percentages. Learning-based methods use their released models. The overall column reproduces Table III.</p>
+    <div class="scroll" role="region" tabindex="0" aria-label="Table III · Solving accuracy (%)">
+<table>
+<caption>Table III · Solving accuracy (%)</caption>
+<thead><tr><th scope="col">Method</th><th scope="col">Mamo (complex)</th><th scope="col">OptMath</th><th scope="col">IndustryOR</th><th scope="col">NL4COP</th><th scope="col">Overall</th></tr></thead>
+<tbody>
+<tr class="group"><th colspan="6">Learning-based methods · released models</th></tr>
+<tr><th scope="row">ORLM</th><td>48.6</td><td>14.1</td><td>34.3</td><td>11.3</td><td>29.1</td></tr>
+<tr><th scope="row">LLMOPT</th><td>50.0</td><td>21.9</td><td>38.4</td><td>10.7</td><td>31.9</td></tr>
+<tr><th scope="row">SIRL</th><td>65.2</td><td>71.1</td><td>52.5</td><td>28.0</td><td>54.9</td></tr>
+<tr class="group"><th colspan="6">GPT-5.1</th></tr>
+<tr><th scope="row">AutoFormulation</th><td>74.3</td><td>46.9</td><td>52.5</td><td>25.3</td><td>52.1</td></tr>
+<tr><th scope="row">OR-LLM-Agent</th><td>91.0</td><td>85.2</td><td>78.8</td><td>68.0</td><td>81.8</td></tr>
+<tr><th scope="row">OptiTree</th><td>80.5</td><td>83.6</td><td>75.8</td><td>56.0</td><td>74.1</td></tr>
+<tr class="highlight"><th scope="row">TriVAL</th><td>90.5</td><td>87.5</td><td>86.9</td><td>81.3</td><td>86.9</td></tr>
+<tr class="group"><th colspan="6">DeepSeek-V3.2</th></tr>
+<tr><th scope="row">AutoFormulation</th><td>74.8</td><td>40.6</td><td>63.6</td><td>14.7</td><td>50.1</td></tr>
+<tr><th scope="row">OR-LLM-Agent</th><td>88.6</td><td>85.9</td><td>77.8</td><td>52.0</td><td>76.8</td></tr>
+<tr><th scope="row">OptiTree</th><td>82.9</td><td>74.2</td><td>67.7</td><td>54.7</td><td>71.2</td></tr>
+<tr class="highlight"><th scope="row">TriVAL</th><td>90.0</td><td>87.5</td><td>89.9</td><td>87.3</td><td>88.8</td></tr>
+</tbody></table>
+</div>
+
+
+    <div class="evidence-pair">
+      <div><h3>Accuracy as problems become harder</h3><p class="body-text">The cross-benchmark plot compares different collections of problems. The NL4COP splits hold the 50 problem types fixed. On its hard split, DeepSeek-V3.2 with TriVAL solves 38 of 50 instances (76%), compared with 23 of 50 (46%) for OptiTree.</p></div>
+      <figure><a href="assets/complexity_vs_performance.webp" aria-label="Open full-size figure. Paper Figure 6 plots solving accuracy by benchmark complexity for DeepSeek-V3.2 methods."><img loading="lazy" width="1200" height="801" src="assets/complexity_vs_performance.webp" alt="Paper Figure 6 plots solving accuracy by benchmark complexity for DeepSeek-V3.2 methods."></a><figcaption><b>Accuracy across benchmark complexity.</b> With DeepSeek-V3.2, TriVAL moves from 90.0% on Mamo<sub>complex</sub> to 87.3% on NL4COP. OR-LLM-Agent moves from 88.6% to 52.0%.</figcaption></figure>
+    </div>
+    <details class="fold"><summary>NL4COP results by difficulty</summary><p>Each difficulty split contains 50 instances, one per problem type. Table IV gives the breakdown for both base models.</p><div class="scroll" role="region" tabindex="0" aria-label="Table IV · NL4COP solving accuracy (%)">
+<table>
+<caption>Table IV · NL4COP solving accuracy (%)</caption>
+<thead><tr><th scope="col">Method</th><th scope="col">Simple</th><th scope="col">Medium</th><th scope="col">Hard</th><th scope="col">Overall</th></tr></thead>
+<tbody>
+<tr class="group"><th colspan="5">GPT-5.1</th></tr>
+<tr><th scope="row">OR-LLM-Agent</th><td>72.0</td><td>72.0</td><td>60.0</td><td>68.0</td></tr>
+<tr><th scope="row">OptiTree</th><td>52.0</td><td>56.0</td><td>60.0</td><td>56.0</td></tr>
+<tr class="highlight"><th scope="row">TriVAL</th><td>88.0</td><td>90.0</td><td>66.0</td><td>81.3</td></tr>
+<tr class="group"><th colspan="5">DeepSeek-V3.2</th></tr>
+<tr><th scope="row">OR-LLM-Agent</th><td>56.0</td><td>56.0</td><td>44.0</td><td>52.0</td></tr>
+<tr><th scope="row">OptiTree</th><td>60.0</td><td>58.0</td><td>46.0</td><td>54.7</td></tr>
+<tr class="highlight"><th scope="row">TriVAL</th><td>94.0</td><td>92.0</td><td>76.0</td><td>87.3</td></tr>
+</tbody></table>
+</div></details>
+    <h3>Where validation matters</h3>
+    <p class="body-text">The main comparison changes several aspects of the modeling process at once. To isolate the role of validation within TriVAL, the ablations keep construction in place and remove one validator at a time. Removing formulation validation produces the largest single-validator drop on NL4COP. That variant scores 73.3–76.0% over five runs. Removing all three yields 66.0–69.3%, compared with the full method’s reported 87.3%.</p>
+    <div class="scroll" role="region" tabindex="0" aria-label="Tables V–VI · Validator ablations (%)">
+<table>
+<caption>Tables V–VI · Validator ablations (%)</caption>
+<thead><tr><th scope="col">Variant</th><th scope="col">IndustryOR</th><th scope="col">NL4COP</th></tr></thead>
+<tbody>
+<tr class="highlight"><th scope="row">Full method</th><td>89.9</td><td>87.3</td></tr>
+<tr><th scope="row">Remove semantic validation</th><td>85.9–88.9</td><td>82.0–86.0</td></tr>
+<tr><th scope="row">Remove formulation validation</th><td>81.8–85.9</td><td>73.3–76.0</td></tr>
+<tr><th scope="row">Remove code validation</th><td>83.8–87.9</td><td>78.7–84.0</td></tr>
+<tr><th scope="row">Remove all validation</th><td>76.8–78.8</td><td>66.0–69.3</td></tr>
+</tbody></table>
+</div>
+    <p class="note">Tables V–VI. Ablated variants show the minimum and maximum accuracy over five runs. The full-method row uses the paper’s reported reference value.</p>
+    <p class="body-text">The error analysis helps explain the drop. On NL4COP, removing validation increases failures attributed to constraint expressions from 12 to 30, variable design from 6 to 12, and code generation from 2 to 4. The largest difference occurs in the equations that define feasible solutions.</p>
+    <details class="fold"><summary>Error types on failed instances</summary><p>The error analysis groups failed instances by code, variable design, and constraint expression. A variable-design error changes which decisions can be expressed. A constraint error changes which combinations of decisions are feasible.</p><div class="scroll" role="region" tabindex="0" aria-label="Table VII · Errors among failed instances">
+<table>
+<caption>Table VII · Errors among failed instances</caption>
+<thead><tr><th scope="col">Benchmark</th><th scope="col">Variant</th><th scope="col">Total</th><th scope="col">Code</th><th scope="col">Variable</th><th scope="col">Constraint</th></tr></thead>
+<tbody>
+<tr><th scope="row">IndustryOR</th><td>Full Method</td><td>10</td><td>1</td><td>1</td><td>8</td></tr>
+<tr><th scope="row">IndustryOR</th><td>w/o All Validation</td><td>21</td><td>1</td><td>3</td><td>17</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>Full Method</td><td>20</td><td>2</td><td>6</td><td>12</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>w/o All Validation</td><td>46</td><td>4</td><td>12</td><td>30</td></tr>
+</tbody></table>
+</div></details>
+    <h3>Transfer, formulation quality, and cost</h3>
+    <p class="body-text">Adding formulation and code validation to OR-LLM-Agent raises its mean NL4COP accuracy from 52.0% to 70.2%. Within TriVAL, giving the validator a formulation selected from four experts raises first-pass acceptance from 30.7% to 46.0% on NL4COP. Validation adds inference cost. The full method uses 62.8k tokens per instance on this benchmark, compared with 41.6k when all three validators are removed.</p>
+    <div class="support">
+
+
+      <details class="fold"><summary>Adding validation to OR-LLM-Agent</summary><p>In a separate experiment, the authors insert formulation and code validation into OR-LLM-Agent. Table VIII reports mean accuracy and the range over five runs for the augmented method.</p><div class="scroll" role="region" tabindex="0" aria-label="Table VIII · Adding validation to OR-LLM-Agent">
+<table>
+<caption>Table VIII · Adding validation to OR-LLM-Agent</caption>
+<thead><tr><th scope="col">Benchmark</th><th scope="col">Original (%)</th><th scope="col">With validation (%)</th><th scope="col">Gain (pp)</th></tr></thead>
+<tbody>
+<tr><th scope="row">IndustryOR</th><td>77.8</td><td>83.2 (82.8–83.8)</td><td>+5.4 (5.0–6.0)</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>52.0</td><td>70.2 (68.7–72.0)</td><td>+18.2 (16.7–20.0)</td></tr>
+</tbody></table>
+</div></details>
+      <details class="fold"><summary>Design ablations and formulation quality</summary><p>The paper also measures the effects of removing construction stages and repair mechanisms. Formulation Pass@1 measures how often the first candidate passes formulation validation.</p><div class="scroll" role="region" tabindex="0" aria-label="Table IX · Modeling design ablations (%)">
+<table>
+<caption>Table IX · Modeling design ablations (%)</caption>
+<thead><tr><th scope="col">Variant</th><th scope="col">IndustryOR</th><th scope="col">NL4COP</th></tr></thead>
+<tbody>
+<tr class="highlight"><th scope="row">Full method</th><td>89.9</td><td>87.3</td></tr>
+<tr><th scope="row">w/o Semantic Understanding</th><td>80.8</td><td>78.7</td></tr>
+<tr><th scope="row">w/o Formulation Stage</th><td>83.8</td><td>78.0</td></tr>
+<tr><th scope="row">Code-Only</th><td>82.8</td><td>78.0</td></tr>
+<tr><th scope="row">w/o Multi-Expert</th><td>83.8</td><td>78.7</td></tr>
+<tr><th scope="row">w/o Code Self-Correction</th><td>79.8</td><td>80.0</td></tr>
+</tbody></table>
+</div><div class="scroll" role="region" tabindex="0" aria-label="Table X · Formulation and execution">
+<table>
+<caption>Table X · Formulation and execution</caption>
+<thead><tr><th scope="col">Benchmark</th><th scope="col">Variant</th><th scope="col">Pass@1 (%)</th><th scope="col">Validation iterations</th><th scope="col">Execution rounds</th></tr></thead>
+<tbody>
+<tr><th scope="row">IndustryOR</th><td>Full Method</td><td>51.0</td><td>2.9</td><td>1.9</td></tr>
+<tr><th scope="row">IndustryOR</th><td>w/o Multi-Expert</td><td>27.3</td><td>4.5</td><td>1.9</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>Full Method</td><td>46.0</td><td>3.1</td><td>2.9</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>w/o Multi-Expert</td><td>30.7</td><td>4.8</td><td>4.1</td></tr>
+</tbody></table>
+</div></details>
+      <details class="fold"><summary>Token cost and error rate</summary><p>Table XI reports token use together with the observed error rates. Removing validation saves 33.8% of tokens on NL4COP, with the error rate increasing from 12.7% to 30.7%.</p><div class="scroll" role="region" tabindex="0" aria-label="Table XI · Full method / without validation">
+<table>
+<caption>Table XI · Full method / without validation</caption>
+<thead><tr><th scope="col">Benchmark</th><th scope="col">Tokens per instance</th><th scope="col">Token saving (%)</th><th scope="col">Error (%)</th><th scope="col">Error increase (×)</th></tr></thead>
+<tbody>
+<tr><th scope="row">IndustryOR</th><td>54.9k / 29.2k</td><td>46.8</td><td>10.1 / 21.2</td><td>2.1</td></tr>
+<tr class="highlight"><th scope="row">NL4COP</th><td>62.8k / 41.6k</td><td>33.8</td><td>12.7 / 30.7</td><td>2.4</td></tr>
+</tbody></table>
+</div></details>
+    </div>
+  </section>
+
+  <section id="conclusion" class="tint"><div class="wrap section">
+    <div class="section-heading"><h2>Conclusion and future work</h2><a class="source" href="https://arxiv.org/html/2605.23966v1#S5">Paper §V ↗</a></div>
+    <p class="lead">In these experiments, checking intermediate modeling decisions improves the share of programs that recover the reference objective. The largest single-validator loss on NL4COP occurs when formulation validation is removed. Decisions about variables and constraint scope determine which solutions reach the solver.</p>
+    <p class="body-text">Solving accuracy measures agreement on the objective value for a given instance. Distinct formulations can yield the same value. A remaining challenge is to identify subtle violations across the text, equations, and code, especially when several constraints depend on one another. The paper proposes more problem-specific validation signals, lower validation cost, and extensions to multi-objective, stochastic, robust, and dynamic optimization.</p>
+  </div></section>
+
+  <section id="resources" class="wrap section">
+    <div class="section-heading"><h2>Run TriVAL</h2><a class="source" href="https://github.com/SCUT-EIPI/TriVAL#quick-start">Installation guide ↗</a></div>
+    <p class="body-text">The public implementation uses Python 3.13, uv, and a DeepSeek API key. Install the dependencies and copy the environment template, then set <code>DEEPSEEK_API_KEY</code> in <code>.env</code>.</p>
+    <pre><code>git clone https://github.com/SCUT-EIPI/TriVAL.git
+cd TriVAL
+uv sync --locked --python 3.13
+cp .env.example .env</code></pre>
+    <p class="body-text">Run the assignment instance shown above. The runner supplies the problem description to TriVAL and keeps reference solutions and code out of the model input.</p>
+    <pre><code>uv run python run.py --dataset nl4cop --index 3</code></pre>
+    <p class="note">The current runner defaults to DeepSeek Flash. The paper reports experiments with DeepSeek-V3.2 and GPT-5.1.</p>
+  </section>
+  <section id="citation" class="wrap section cite">
+    <div class="section-heading"><h2>Citation</h2><button type="button" class="btn" id="copy-cite" hidden>Copy BibTeX</button></div>
+    <pre><code id="bibtex">@article{fang2026trival,
+  title = {TriVAL: A Tri-Validation Framework for Faithful Automatic Optimization Modeling},
+  author = {Fang, Ziyang and Wang, JinXi and Zhong, Jinghui and Ong, Yew-Soon},
+  journal = {arXiv preprint arXiv:2605.23966},
+  year = {2026},
+  doi = {10.48550/arXiv.2605.23966}
+}</code></pre><span id="copy-status" role="status"></span>
+  </section>
+</main>
+<footer><div class="wrap"><p>TriVAL · Ziyang Fang, JinXi Wang, Jinghui Zhong, and Yew-Soon Ong.</p><p>Website adapted from Shikun Liu’s <a href="https://shikun.io/projects/clarity">Clarity template</a>. Adapted design under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.</p><a href="#top">Back to top ↑</a></div></footer>
+</body>
+</html>

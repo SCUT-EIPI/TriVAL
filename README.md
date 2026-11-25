@@ -14,6 +14,8 @@ Ziyang Fang · JinXi Wang · Jinghui Zhong · Yew-Soon Ong
 
 Official implementation of **TriVAL**. The repository provides the method and prompts, the **NL4COP benchmark**, prepared third-party benchmark data, and a runner for one problem.
 
+The [project website](https://scut-eipi.github.io/TriVAL/) includes the paper figures, experimental tables, and a searchable index of NL4COP. Open `docs/index.html` in a browser to read it locally. To publish, select GitHub Actions as the repository’s Pages source and run **Publish TriVAL project page** manually.
+
 ## Overview
 
 TriVAL turns natural-language optimization problems into solver code through a **construct-validate-revise** loop at three stages:
